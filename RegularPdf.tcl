@@ -17,9 +17,10 @@ label .mTop.1Label -text {A PDF Authoring Tool}
 label .mTop.2Label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 italic}
 pack .mTop.0Label .mTop.1Label .mTop.2Label -side top -pady 10 -padx 2cm
 
+
+
 # List box Frame
 set a [frame .0frame -relief groove -borderwidth 2]
-
 pack $a -side left -expand false -fill y
 # Current Items Label
 set b [label .0frame.0label -text {Items in current directory}]
@@ -33,10 +34,29 @@ pack $b $d -fill x
 pack $c -anchor ne -pady 2
 pack $dd -fill x
 # List box
-set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor black -cursor hand2]
+set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor black -cursor hand2 -activestyle dotbox]
 pack $e -side left -fill y 
 #$e config -highlightbackground [$e cget -highlightcolor] ; # highlight background -> When NOT in Focus
 $e config -background [. cget -background]
+
+# Bind Button
+proc get_files {{path ""}} { ; # gets directories too.
+	global e
+	if {$path == ""} {
+		set path [pwd]
+	}
+	$e delete 0 end
+	set files [glob -directory $path *]
+	puts $files
+	foreach f $files {
+		$e insert end [lindex [file split $f] end] 
+	}
+	if {[string is alpha %s] == 1} {
+		bind $e <Visibility> ""
+	}
+}
+$c config -command "get_files"
+bind $e <Visibility> "get_files"
 #bind .mList <Visibility> {puts "Visibility event fired >%s<"}
 
 button .mButton -text {Button 1} -bg #123456 -fg white
