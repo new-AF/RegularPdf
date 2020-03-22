@@ -22,33 +22,41 @@ pack $z.${v}label -side top -pady 10 -padx 2cm
 variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} fVar {} eHover {}
 
 # List box Frame
-set a [labelframe .0frame -relief groove -borderwidth 2 -text "Items in current directory" -relief solid]
-pack $a -side left -expand false -fill y -padx 5 -pady 5
-# Current Items Label
-#set b [label .0frame.0label ]
+set a [labelframe .0frame -borderwidth 5 -text "Items in current directory" -relief ridge]
+set buttonsBar [frame $a.0frame]
+
+# Change directory Button
+set b [button $buttonsBar.1button -text "$IconFolder .."]
 # Reload Button
-set c [button .0frame.0button -text $IconReload]
+set c [button $buttonsBar.0button -text $IconReload]
 #puts [$c configure]
 # Separator
 set d [ttk::separator .0frame.0separator -orient horizontal]
 set dd [ttk::separator .0frame.1separator -orient horizontal]
-# Pack
-pack $d -fill x
-pack $c -anchor ne
-pack $dd -fill x
+
 # List box
 set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor blue -cursor hand2 -activestyle dotbox -selectmode single -listvar eVar]
 set f [listbox $a.1list -relief flat -highlightthickness 2 -highlightcolor red -cursor hand2 -activestyle dotbox -bg [. cget -bg] -listvar fVar]
 
-pack $f -side left -expand 1 -fill y
-pack $e -side right -expand 1 -fill both
+
 variable g [scrollbar $a.0scroll -orient vertical -command "$e yview"] h [scrollbar $a.1scroll -orient horizontal -command "$e xview"]
 
 
 $e config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 
-pack $h -after $e  -side bottom -expand 1 -fill x
-pack $g -after $e -side right -expand 1 -fill y
+# Pack "Items in current directory"
+
+
+pack $a -side left -expand false -fill y -padx 5 -pady 5
+pack $d -fill x
+pack $buttonsBar -fill x
+pack $b $c -side right -anchor ne
+pack $h  -side bottom  -fill x
+pack $dd -fill x
+pack $f -side left -expand 1 -fill y
+pack $e -side left -expand 1 -fill both
+pack $g -side left -expand 1 -fill y
+
 
 proc Adjustf {} {
 	set test tes
