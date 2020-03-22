@@ -8,20 +8,18 @@ wm title . {RegularPDF}
 wm geometry . {700x400}
 
 # About Dialog Window
-toplevel .mTop
-wm withdraw .mTop
-wm title .mTop About
-wm protocol .mTop WM_DELETE_WINDOW {wm withdraw .mTop}
-label .mTop.0Label -text [wm title .] -font {Tahoma 16 normal}
-label .mTop.1Label -text {A PDF Authoring Tool}
-label .mTop.2Label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 italic}
-pack .mTop.0Label .mTop.1Label .mTop.2Label -side top -pady 10 -padx 2cm
-
-set Font TkDefaultFont
-set UnicodeFolder "\ud83d\udcc2"
-set UnicodeBack "\u2190"
-set UnicodeReload "\u21ba"
-set boldfont {-font {-weight bold}}
+toplevel .1top
+wm withdraw .1top
+wm title .1top About
+wm protocol .1top WM_DELETE_WINDOW {wm withdraw .1top}
+set z .1top
+label $z.0label -text [wm title .] -font {Tahoma 16 normal}
+label $z.1label -text {A PDF Authoring Tool}
+label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 italic}
+foreach v {0 1 2} {
+pack $z.${v}label -side top -pady 10 -padx 2cm
+}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} fVar {} eHover {}
 
 # List box Frame
 set a [labelframe .0frame -relief groove -borderwidth 2 -text "Items in current directory" -relief solid]
@@ -29,7 +27,7 @@ pack $a -side left -expand false -fill y -padx 5 -pady 5
 # Current Items Label
 #set b [label .0frame.0label ]
 # Reload Button
-set c [button .0frame.0button -text $UnicodeReload]
+set c [button .0frame.0button -text $IconReload]
 #puts [$c configure]
 # Separator
 set d [ttk::separator .0frame.0separator -orient horizontal]
@@ -39,44 +37,68 @@ pack $d -fill x
 pack $c -anchor ne
 pack $dd -fill x
 # List box
-set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor blue -cursor hand2 -activestyle dotbox -selectmode single]
-set f [listbox $a.1list -relief flat -highlightthickness 2 -highlightcolor red -cursor hand2 -activestyle dotbox -bg [. cget -bg]]
+set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor blue -cursor hand2 -activestyle dotbox -selectmode single -listvar eVar]
+set f [listbox $a.1list -relief flat -highlightthickness 2 -highlightcolor red -cursor hand2 -activestyle dotbox -bg [. cget -bg] -listvar fVar]
 pack $e -side right -expand 1 -fill both
 pack $f -side left -expand 1 -fill y
+variable g [scrollbar $a.0scroll -orient vertical] h [scrollbar $a.1scroll -orient horizo]
+
+$e config -xscrollcommand "$g set" -yscrollcommand  "$h set"
+
+pack $g -side right -expand 1 -fill y
+pack $h -side bottom -expand 1 -fill y
 proc Adjustf {} {
-	
-	set p [font measure TkDefaultFont tes]
+	set test tes
+	set p [font measure $::Font $test]
 	$::f config -width 3; #"${p}p"
-	puts "yyyyyyyyyyyy $p"
+	puts "Font measure >$test< >$p<"
 }
 #$e config -highlightbackground [$e cget -highlightcolor] ; # highlight background -> When NOT in Focus
 $e config -background [. cget -background]
 
 # Bind Button
-proc get_files {{path ""}} { ; # gets directories too.
+proc get_items {{path ""}} {
 	
-	if {$path == ""} {
+	if {[string compare path ""]==0 } {
 		set path [pwd]
 	}
-	$::e delete 0 end
-	set files [glob -directory $path *]
-	#puts $files
-	$::e insert 0 $::UnicodeBack
+	
+	
+	set files [concat [glob -directory $path -nocomplain  -types {f} *] [glob -directory $path -nocomplain  -types {f hidden} *] ]
+	set dirs [concat [glob -directory $path -nocomplain  -types {d} *] [glob -directory $path -nocomplain  -types {d hidden} *] ] 
+	
+	#set filenames [lmap v $files { lindex [file split $v] end  }] ; #Not Available in Tcl8.6
+	
+	
+	puts "****[llength $dirs]*****"
+	variable filenames "" dirnames "" iconnames [lrepeat [llength $dirs] $::IconFolder]
+	
+	foreach v "$dirs" {  lappend dirnames [lindex [file split $v] end] }
+	foreach v "$files" {  lappend filenames [lindex [file split $v] end] }
+	
+	variable ::eVar {} ::fVar {}
+	set ::eVar [lsort -nocase  $dirnames] ;# $filenames]
+	lappend ::eVar {*}[lsort -nocase  $filenames]
+	#set ::fVar $iconnames
+
+	puts ************
+	puts $dirnames ; puts ---------------
+	puts $filenames ; puts -------------
+	puts $::eVar ; puts -------------
+	
+	$::e insert 0 $::IconBack
 	$::f insert 0 ""
-	foreach f $files {
-		$::e insert end [lindex [file split $f] end] 
-		$::f insert end $::UnicodeFolder 
-	}
-	if {[string is alpha %s] == 1} {
-		bind $e <Visibility> ""
+	
+
+	if {[string is alpha %s] == 1} { # unbind Visibility
+		bind $::e <Visibility> ""
 	}
 }
 
 
-$c config -command get_files
-bind $e <Visibility> {get_files ; Adjustf}
+$c config -command get_items
+bind $e <Visibility> {$c invoke ; Adjustf}
 
-set eHover {}
 proc hover {e y} {
 	set i [$e nearest $y]
 	
@@ -105,7 +127,6 @@ bind $e <Leave> {
 	#puts $item
 }
 
-#bind .mList <Visibility> {puts "Visibility event fired >%s<"}
 
 button .mButton -text {Button 1} -bg #123456 -fg white
 place .mButton -relx 0.5 -rely 0.5 -anchor center
@@ -116,7 +137,7 @@ menu .mMenu
 
 # Help->About Menu
 menu .mMenu.mHelp
-.mMenu.mHelp add command -command {wm deicon .mTop} -label About
+.mMenu.mHelp add command -command "wm deicon $z" -label About
 .mMenu add cascade -label Help -menu .mMenu.mHelp
 
 console show
