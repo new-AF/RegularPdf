@@ -39,14 +39,17 @@ pack $dd -fill x
 # List box
 set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor blue -cursor hand2 -activestyle dotbox -selectmode single -listvar eVar]
 set f [listbox $a.1list -relief flat -highlightthickness 2 -highlightcolor red -cursor hand2 -activestyle dotbox -bg [. cget -bg] -listvar fVar]
-pack $e -side right -expand 1 -fill both
+
 pack $f -side left -expand 1 -fill y
-variable g [scrollbar $a.0scroll -orient vertical] h [scrollbar $a.1scroll -orient horizo]
+pack $e -side right -expand 1 -fill both
+variable g [scrollbar $a.0scroll -orient vertical -command "$e yview"] h [scrollbar $a.1scroll -orient horizontal -command "$e xview"]
 
-$e config -xscrollcommand "$g set" -yscrollcommand  "$h set"
 
-pack $g -side right -expand 1 -fill y
-pack $h -side bottom -expand 1 -fill y
+$e config -xscrollcommand "$h set" -yscrollcommand  "$g set"
+
+pack $h -after $e  -side bottom -expand 1 -fill x
+pack $g -after $e -side right -expand 1 -fill y
+
 proc Adjustf {} {
 	set test tes
 	set p [font measure $::Font $test]
