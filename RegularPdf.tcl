@@ -78,11 +78,17 @@ proc get_items {{path ""}} {
 	set files [concat [glob -directory $path -nocomplain  -types {f} *] [glob -directory $path -nocomplain  -types {f hidden} *] ]
 	set dirs [concat [glob -directory $path -nocomplain  -types {d} *] [glob -directory $path -nocomplain  -types {d hidden} *] ] 
 	
-	#set filenames [lmap v $files { lindex [file split $v] end  }] ; #Not Available in Tcl8.6
+	#set filenames [lmap v $files { lindex [file split $v] end  }] ; #Not Available in Tcl8.5
 	
 	
-	puts "****[llength $dirs]*****"
-	variable filenames "" dirnames "" iconnames [lrepeat [llength $dirs] $::IconFolder]
+				; puts "*****files([llength $files])*******"
+	puts $files; puts "*****directories([llength $dirs])*******"
+	puts $dirs ;
+	puts ---------------
+	
+	#puts $::eVar ; puts -------------
+	
+	variable filenames "" dirnames "" iconnames [lrepeat [expr {[llength $dirs]+1}] $::IconFolder]
 	
 	foreach v "$dirs" {  lappend dirnames [lindex [file split $v] end] }
 	foreach v "$files" {  lappend filenames [lindex [file split $v] end] }
@@ -90,24 +96,22 @@ proc get_items {{path ""}} {
 	variable ::eVar {} ::fVar {}
 	set ::eVar [lsort -nocase  $dirnames] ;# $filenames]
 	lappend ::eVar {*}[lsort -nocase  $filenames]
-	#set ::fVar $iconnames
-
-	puts ************
-	puts $dirnames ; puts ---------------
-	puts $filenames ; puts -------------
-	puts $::eVar ; puts -------------
 	
 	$::e insert 0 $::IconBack
-	$::f insert 0 ""
-	
+	set ::fVar $iconnames
 
-	if {[string is alpha %s] == 1} { # unbind Visibility
+	# unbind Visibility
+	if {[string is alpha %s] == 1} { 
 		bind $::e <Visibility> ""
 	}
 }
 
-
+proc change_dir {} {
+	set dir [tk_chooseDirectory -title {Choose a directory to list its contents}]
+	get_items $dir
+}
 $c config -command get_items
+$b config -command change_dir
 bind $e <Visibility> {$c invoke ; Adjustf}
 
 proc hover {e y} {
