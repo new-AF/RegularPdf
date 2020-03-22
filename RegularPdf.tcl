@@ -50,13 +50,13 @@ $e config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 pack $a -side left -expand false -fill y -padx 5 -pady 5
 pack $d -fill x
 pack $buttonsBar -fill x
-pack $b $c -side right -anchor ne
+pack $b $c -side right -anchor ne -padx 10
 pack $h  -side bottom  -fill x
 pack $dd -fill x
 pack $f -side left -expand 1 -fill y
 pack $e -side left -expand 1 -fill both
 pack $g -side left -expand 1 -fill y
-
+pack config $b -padx 0
 
 proc Adjustf {} {
 	set test tes
