@@ -19,7 +19,7 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} fVar {} eHover {}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {}
 
 # List box Frame
 set a [labelframe .0frame -borderwidth 5 -text "Items in current directory" -relief ridge]
@@ -38,12 +38,12 @@ set dd [ttk::separator .0frame.1separator -orient horizontal]
 set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor blue -cursor hand2 -activestyle dotbox -selectmode single -listvar eVar]
 set f [listbox $a.1list -relief flat -highlightthickness 2 -highlightcolor red -cursor hand2 -activestyle dotbox -bg [. cget -bg] -listvar fVar]
 
-
-variable g [scrollbar $a.0scroll -orient vertical -command "$e yview"] h [scrollbar $a.1scroll -orient horizontal -command "$e xview"]
+proc distribute_scroll {things args} { foreach v $things { $v {*}$args } }
+variable g [scrollbar $a.0scroll -orient vertical -command "distribute_scroll {$e $f} yview"] h [scrollbar $a.1scroll -orient horizontal -command "$e xview"]
 
 
 $e config -xscrollcommand "$h set" -yscrollcommand  "$g set"
-
+$f config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 # Pack "Items in current directory"
 
 
@@ -70,10 +70,11 @@ $e config -background [. cget -background]
 # Bind Button
 proc get_items {{path ""}} {
 	
-	if {[string compare path ""]==0 } {
+	if {[string compare $path ""]==0 } {
 		set path [pwd]
 	}
 	
+	variable ::eVar {} ::fVar {}
 	
 	set files [concat [glob -directory $path -nocomplain  -types {f} *] [glob -directory $path -nocomplain  -types {f hidden} *] ]
 	set dirs [concat [glob -directory $path -nocomplain  -types {d} *] [glob -directory $path -nocomplain  -types {d hidden} *] ] 
@@ -88,17 +89,20 @@ proc get_items {{path ""}} {
 	
 	#puts $::eVar ; puts -------------
 	
-	variable filenames "" dirnames "" iconnames [lrepeat [expr {[llength $dirs]+1}] $::IconFolder]
+	set ::eDirCount [expr {[llength $dirs]+1}]
+	variable filenames "" dirnames "" iconnames [lrepeat $::eDirCount $::IconFolder]
 	
 	foreach v "$dirs" {  lappend dirnames [lindex [file split $v] end] }
 	foreach v "$files" {  lappend filenames [lindex [file split $v] end] }
 	
-	variable ::eVar {} ::fVar {}
+	set ::ePath [concat [lindex $dirs 0] [lindex $files 0]] ;# puts "%%%%%%%%%%%%%%%"; puts ">$::ePath<"
+	set ::ePath [file dirname [lindex $::ePath 0]]; #puts "====Current Path>$::ePath====="
+	
 	set ::eVar [lsort -nocase  $dirnames] ;# $filenames]
-	lappend ::eVar {*}[lsort -nocase  $filenames]
+	lappend ::eVar {*}[lsort -nocase  $filenames] ;
 	
 	$::e insert 0 $::IconBack
-	set ::fVar $iconnames
+	set ::fVar [concat $iconnames [expr { [llength $files] ? [lrepeat [llength $files] {}] : {} }]]
 
 	# unbind Visibility
 	if {[string is alpha %s] == 1} { 
@@ -110,10 +114,30 @@ proc change_dir {} {
 	set dir [tk_chooseDirectory -title {Choose a directory to list its contents}]
 	get_items $dir
 }
+
+proc list_select {widget} {
+	
+	set from $::ePath
+	
+	set i [$widget cursel]
+	if {$i == {}} {
+		return
+	} elseif {$i == 0} {
+		
+		set to [file dirname $from]
+		
+	} else {
+		set to [file join $from [$widget get $i]]
+		
+	}
+	puts "from {$from} to {$to}"
+	set ::eHover {} ; get_items $to
+	
+}
 $c config -command get_items
 $b config -command change_dir
 bind $e <Visibility> {$c invoke ; Adjustf}
-
+bind $e <<ListboxSelect>> {list_select %W}
 proc hover {e y} {
 	set i [$e nearest $y]
 	
@@ -126,12 +150,7 @@ proc hover {e y} {
 		$e itemconfigure $i -bg yellow
 	}
 }
-bind $e <Motion> {
-	
-	hover $::e %y
-	
-	
-}
+bind $e <Motion> { hover %W %y }
 
 
 bind $e <Leave> {
