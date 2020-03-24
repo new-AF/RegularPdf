@@ -19,14 +19,18 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} sVarMouse {0}
+
+# Status Bar
+set s [label .0label -relief sunken -borderwidth 2 -text "Default Text"]
 
 # List box Frame
 set a [labelframe .0frame -borderwidth 5 -text "Items in current directory" -relief ridge]
+
 set buttonsBar [frame $a.0frame]
 
 # Change directory Button
-set b [button $buttonsBar.1button -text "$IconFolder .."]
+set b [button $buttonsBar.1button -text "$IconFolder"]
 # Reload Button
 set c [button $buttonsBar.0button -text $IconReload]
 #puts [$c configure]
@@ -46,7 +50,7 @@ $e config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 $f config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 # Pack "Items in current directory"
 
-
+pack $s -side top -fill x
 pack $a -side left -expand false -fill y -padx 5 -pady 5
 pack $d -fill x
 pack $buttonsBar -fill x
@@ -67,7 +71,7 @@ proc Adjustf {} {
 #$e config -highlightbackground [$e cget -highlightcolor] ; # highlight background -> When NOT in Focus
 $e config -background [. cget -background]
 
-# Bind Button
+
 proc get_items {{path ""}} {
 	
 	if {[string compare $path ""]==0 } {
@@ -134,10 +138,30 @@ proc list_select {widget} {
 	set ::eHover {} ; get_items $to
 	
 }
+
+#Tooltips "database"
+namespace eval Tooltip {
+	set $::b "Choose a different directory to list its contents"
+	set $::c "Reload and relist items (as Folders and Files) in current directory"
+}
+
+proc from_ns {N name} {
+	
+	return [set ::[concat $N]::$name]
+}
+
+proc set_statusbar {what} {
+	$::s config -text $what
+}
+	
+
+# Bind Things
 $c config -command get_items
 $b config -command change_dir
 bind $e <Visibility> {$c invoke ; Adjustf}
 bind $e <<ListboxSelect>> {list_select %W}
+bind $b <Motion> { set_statusbar [from_ns Tooltip %W] }
+bind $c <Motion> { set_statusbar [from_ns Tooltip %W] }
 proc hover {e y} {
 	set i [$e nearest $y]
 	
