@@ -19,16 +19,51 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} sVarMouse {0}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {}
 
 # Status Bar
-set s [label .0label -relief sunken -borderwidth 2 -text "Default Text"]
+set s [label .0label -relief sunken -borderwidth 2 -text ""]
+
+#Checkbutton
+proc Reliefbutton {name args} {
+	
+	puts stdout "--- >$name< >$args<"
+	set operation [lindex $args 0]
+	
+	switch $operation {
+		ison {
+			return [expr "[$name cget -relief] eq sunken"]
+		}
+		isoff {
+			return [expr "[$name cget -relief] eq raised"]
+		}
+		default {
+			set a [button $name {*}$args -relief raised]
+	
+			bindtags $a {$a ReliefButton Button . all}
+	
+			return $a
+		}
+	}
+	
+}
+proc bind_Reliefbutton {} {
+	bind ReliefButton <ButtonRelease> { puts Relief }
+}
+
+
+# Tabs
+namespace eval Tab {
+	set a [labelframe .1frame -text {Open Tabs} -width 20 -bd 5]
+	pack $a -side right -fill y
+}
 
 # List box Frame
 set a [labelframe .0frame -borderwidth 5 -text "Items in current directory" -relief ridge]
 
 set buttonsBar [frame $a.0frame]
-
+# Filter PDF button
+set j [Reliefbutton $buttonsBar.3button -text {Filter PDF files}]
 # Change directory Button
 set b [button $buttonsBar.1button -text "$IconFolder"]
 # Reload Button
@@ -50,11 +85,11 @@ $e config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 $f config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 # Pack "Items in current directory"
 
-pack $s -side top -fill x
+#pack $s -side top -fill x
 pack $a -side left -expand false -fill y -padx 5 -pady 5
 pack $d -fill x
 pack $buttonsBar -fill x
-pack $b $c -side right -anchor ne -padx 10
+pack $j $b $c -side right -anchor ne -padx 10
 pack $h  -side bottom  -fill x
 pack $dd -fill x
 pack $f -side left -expand 1 -fill y
@@ -158,7 +193,7 @@ proc set_statusbar {what} {
 # Bind Things
 $c config -command get_items
 $b config -command change_dir
-bind $e <Visibility> {$c invoke ; Adjustf}
+bind $e <Visibility> {$c invoke ; Adjustf ; bind_Reliefbutton}
 bind $e <<ListboxSelect>> {list_select %W}
 bind $b <Motion> { set_statusbar [from_ns Tooltip %W] }
 bind $c <Motion> { set_statusbar [from_ns Tooltip %W] }
