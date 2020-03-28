@@ -19,7 +19,7 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVae {}
 
 # Status Bar
 set s [label .0label -relief sunken -borderwidth 2 -text ""]
@@ -27,7 +27,7 @@ set s [label .0label -relief sunken -borderwidth 2 -text ""]
 #Checkbutton
 proc Reliefbutton {name args} {
 	
-	puts stdout "--- >$name< >$args<"
+	puts stdout "(Reliefbutton) >$name< >$args<"
 	set operation [lindex $args 0]
 	
 	switch $operation {
@@ -39,24 +39,35 @@ proc Reliefbutton {name args} {
 		}
 		default {
 			set a [button $name {*}$args]
-	
-			bindtags $a {$a ReliefButton  . all} ;# Button deleted
+			$a config -command "do_Reliefbutton $a"
+			#bindtags $a {$a ReliefButton  . all} ;# Button deleted
 	
 			return $a
 		}
 	}
 	
 }
-proc bind_Reliefbutton {} {
-	bind ReliefButton <Button> {
-		set was [%W cget -relief]
-		set will [switch $was raised { concat sunken} sunken {concat raised} ]
-		%W config -relief $will
-		
-	}
+proc bind_Reliefbutton {W to} {
+	set command [$W cget -command]
+	$W config -command "$command ; $to $W"
 }
 
+proc do_Reliefbutton {W} {
+		puts "ReliefButton Defualt Binding"
+		set was [$W cget -relief]
+		set will [switch $was raised { concat sunken} sunken {concat raised} ]
+		$W config -relief $will
+}
 
+proc filter_pdf {W} {
+	
+	puts "filter pdf ison [Reliefbutton $W ison]"
+		
+	set a {}
+	foreach v [lrange $::eVar $::eDirCount end] { set c [string range $v end-3 end]  ; set b [string compare -nocase $c .pdf] ; if !$b {lappend  a $v }}
+	set ::jVar $a
+	$::e config -listvariable jVar
+}
 # Tabs
 namespace eval Tab {
 	set a [labelframe .1frame -text {Open Tabs} -width 20 -bd 5]
@@ -198,10 +209,12 @@ proc set_statusbar {what} {
 # Bind Things
 $c config -command get_items
 $b config -command change_dir
-bind $e <Visibility> {$c invoke ; Adjustf ; bind_Reliefbutton}
+bind $e <Visibility> {$c invoke ; Adjustf}
 bind $e <<ListboxSelect>> {list_select %W}
 bind $b <Motion> { set_statusbar [from_ns Tooltip %W] }
 bind $c <Motion> { set_statusbar [from_ns Tooltip %W] }
+#bind $j <Button> +{filter_pdf %W}
+bind_Reliefbutton $j filter_pdf
 proc hover {e y} {
 	set i [$e nearest $y]
 	
