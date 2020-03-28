@@ -32,15 +32,15 @@ proc Reliefbutton {name args} {
 	
 	switch $operation {
 		ison {
-			return [expr "[$name cget -relief] eq sunken"]
+			return [expr {"[$name cget -relief]" eq "sunken"}]
 		}
 		isoff {
-			return [expr "[$name cget -relief] eq raised"]
+			return [expr {"[$name cget -relief]" eq "raised"}]
 		}
 		default {
-			set a [button $name {*}$args -relief raised]
+			set a [button $name {*}$args]
 	
-			bindtags $a {$a ReliefButton Button . all}
+			bindtags $a {$a ReliefButton  . all} ;# Button deleted
 	
 			return $a
 		}
@@ -48,7 +48,12 @@ proc Reliefbutton {name args} {
 	
 }
 proc bind_Reliefbutton {} {
-	bind ReliefButton <ButtonRelease> { puts Relief }
+	bind ReliefButton <Button> {
+		set was [%W cget -relief]
+		set will [switch $was raised { concat sunken} sunken {concat raised} ]
+		%W config -relief $will
+		
+	}
 }
 
 
@@ -89,13 +94,13 @@ $f config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 pack $a -side left -expand false -fill y -padx 5 -pady 5
 pack $d -fill x
 pack $buttonsBar -fill x
-pack $j $b $c -side right -anchor ne -padx 10
+pack $b $c $j  -side right -anchor ne -padx 10
 pack $h  -side bottom  -fill x
 pack $dd -fill x
 pack $f -side left -expand 1 -fill y
 pack $e -side left -expand 1 -fill both
 pack $g -side left -expand 1 -fill y
-pack config $b -padx 0
+#pack config $j -padx 0
 
 proc Adjustf {} {
 	set test tes
