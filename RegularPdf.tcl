@@ -49,7 +49,7 @@ proc Reliefbutton {name args} {
 }
 proc bind_Reliefbutton {W to} {
 	set command [$W cget -command]
-	$W config -command "$command ; $to $W"
+	$W config -command "$command ; $to $W" ;# only appends , clear/remove the command when to == {}
 }
 
 proc do_Reliefbutton {W} {
@@ -61,15 +61,19 @@ proc do_Reliefbutton {W} {
 
 proc filter_pdf {W} {
 	
-	puts "filter pdf ison [Reliefbutton $W ison]"
-		
-	set a {}
-	foreach v [lrange $::eVar $::eDirCount end] { set c [string range $v end-3 end]  ; set b [string compare -nocase $c .pdf] ; if !$b {lappend  a $v }}
+	#puts "filter pdf ison [Reliefbutton $W ison]"
+	if [Reliefbutton $W ison] {
+	set a [lsearch -nocase -inline -glob  [lrange $::eVar $::eDirCount end] *.pdf]
+	set a [concat [lrange $::eVar 0 $::eDirCount] $a]
 	set ::jVar $a
-	$::e config -listvariable jVar
+	$::e config -listvariable ::jVar
+	} else {
+	$::e config -listvariable ::eVar
+	}
+	
 }
-# Tabs
-namespace eval Tab {
+
+namespace eval tab { ; # Tabs
 	set a [labelframe .1frame -text {Open Tabs} -width 20 -bd 5]
 	pack $a -side right -fill y
 }
@@ -122,30 +126,30 @@ proc Adjustf {} {
 #$e config -highlightbackground [$e cget -highlightcolor] ; # highlight background -> When NOT in Focus
 $e config -background [. cget -background]
 
-
 proc get_items {{path ""}} {
 	
-	if {[string compare $path ""]==0 } {
+	if [string equal $path ""] {
 		set path [pwd]
 	}
 	
-	variable ::eVar {} ::fVar {}
+	$::e delete 0 end
+	variable ::eVar {} ::fVar {} ::ePath $path filenames {} dirnames {} 
 	
 	set files [concat [glob -directory $path -nocomplain  -types {f} *] [glob -directory $path -nocomplain  -types {f hidden} *] ]
 	set dirs [concat [glob -directory $path -nocomplain  -types {d} *] [glob -directory $path -nocomplain  -types {d hidden} *] ] 
 	
 	#set filenames [lmap v $files { lindex [file split $v] end  }] ; #Not Available in Tcl8.5
 	
-	
-				; puts "*****files([llength $files])*******"
-	puts $files; puts "*****directories([llength $dirs])*******"
-	puts $dirs ;
-	puts ---------------
+	puts "*****path($path)*******
+	*****files\[[llength $files]\]*******
+	[join $files \n]
+	*****directories\[[llength $dirs]\]*******
+	[join $dirs \n]
+	---------------"
 	
 	#puts $::eVar ; puts -------------
 	
-	set ::eDirCount [expr {[llength $dirs]+1}]
-	variable filenames "" dirnames "" iconnames [lrepeat $::eDirCount $::IconFolder]
+	variable ::eDirCount [expr {[llength $dirs]+1}] iconnames [lrepeat $::eDirCount $::IconFolder]
 	
 	foreach v "$dirs" {  lappend dirnames [lindex [file split $v] end] }
 	foreach v "$files" {  lappend filenames [lindex [file split $v] end] }
@@ -174,7 +178,7 @@ proc list_select {widget} {
 	
 	set from $::ePath
 	
-	set i [$widget cursel]
+	set i [$widget curselection]
 	if {$i == {}} {
 		return
 	} elseif {$i == 0} {
