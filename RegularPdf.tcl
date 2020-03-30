@@ -74,12 +74,15 @@ proc filter_pdf {W} {
 }
 
 namespace eval tab { ; # Tabs
-	set a [labelframe .1frame -text {Open Tabs} -width 20 -bd 5]
+	variable  a [labelframe .1frame -text {Open Tabs}]
+	set c [canvas $a.0canvas]
 	pack $a -side right -fill y
+	pack $c -fill both
+	proc create {} {}
 }
 
 # List box Frame
-set a [labelframe .0frame -borderwidth 5 -text "Items in current directory" -relief ridge]
+set a [labelframe .0frame  -text "Items in current directory" ]
 
 set buttonsBar [frame $a.0frame]
 # Filter PDF button
@@ -151,11 +154,11 @@ proc get_items {{path ""}} {
 	
 	variable ::eDirCount [expr {[llength $dirs]+1}] iconnames [lrepeat $::eDirCount $::IconFolder]
 	
-	foreach v "$dirs" {  lappend dirnames [lindex [file split $v] end] }
-	foreach v "$files" {  lappend filenames [lindex [file split $v] end] }
+	foreach v $dirs {  lappend dirnames [lindex [file split $v] end] }
+	foreach v $files {  lappend filenames [lindex [file split $v] end] }
 	
-	set ::ePath [concat [lindex $dirs 0] [lindex $files 0]] ;# puts "%%%%%%%%%%%%%%%"; puts ">$::ePath<"
-	set ::ePath [file dirname [lindex $::ePath 0]]; #puts "====Current Path>$::ePath====="
+	#set ::ePath [concat [lindex $dirs 0] [lindex $files 0]] ;# puts "%%%%%%%%%%%%%%%"; puts ">$::ePath<"
+	#set ::ePath [file dirname [lindex $::ePath 0]]; #puts "====Current Path>$::ePath====="
 	
 	set ::eVar [lsort -nocase  $dirnames] ;# $filenames]
 	lappend ::eVar {*}[lsort -nocase  $filenames] ;
@@ -174,19 +177,22 @@ proc change_dir {} {
 	get_items $dir
 }
 
-proc list_select {widget} {
+proc list_select {w} {
 	
 	set from $::ePath
 	
-	set i [$widget curselection]
+	set i [$w curselection]
 	if {$i == {}} {
 		return
 	} elseif {$i == 0} {
 		
 		set to [file dirname $from]
 		
+	} elseif [expr {$i >= $::eDirCount}] {
+		puts {A FILEEEEEEEEEEE}
+		return
 	} else {
-		set to [file join $from [$widget get $i]]
+		set to [file join $from [$w get $i]]
 		
 	}
 	puts "from {$from} to {$to}"
@@ -213,7 +219,7 @@ proc set_statusbar {what} {
 # Bind Things
 $c config -command get_items
 $b config -command change_dir
-bind $e <Visibility> {$c invoke ; Adjustf}
+bind $e <Visibility> { "[$c cget -command]" ~/TestPDF  ; Adjustf}
 bind $e <<ListboxSelect>> {list_select %W}
 bind $b <Motion> { set_statusbar [from_ns Tooltip %W] }
 bind $c <Motion> { set_statusbar [from_ns Tooltip %W] }
