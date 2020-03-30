@@ -63,8 +63,9 @@ proc filter_pdf {W} {
 	
 	#puts "filter pdf ison [Reliefbutton $W ison]"
 	if [Reliefbutton $W ison] {
-	set a [lsearch -nocase -inline -glob  [lrange $::eVar $::eDirCount end] *.pdf]
-	set a [concat [lrange $::eVar 0 $::eDirCount] $a]
+	set a [lrange $::eVar 0 $::eDirCount]
+	lappend a [lsearch -nocase -inline -glob  [lrange $::eVar $::eDirCount end] *.pdf]
+	
 	set ::jVar $a
 	$::e config -listvariable ::jVar
 	} else {
