@@ -63,9 +63,9 @@ proc filter_pdf {W} {
 	
 	#puts "filter pdf ison [Reliefbutton $W ison]"
 	if [Reliefbutton $W ison] {
-	set a [lrange $::eVar 0 $::eDirCount]
-	lappend a [lsearch -nocase -inline -glob  [lrange $::eVar $::eDirCount end] *.pdf]
-	
+	set a [lrange $::eVar 0 $::eDirCount-1]
+	lappend a {*}[lsearch -nocase -inline -all -glob [lrange $::eVar $::eDirCount end] *.pdf];
+	#puts "PDFs -> $b \n Others -> $a"
 	set ::jVar $a
 	$::e config -listvariable ::jVar
 	} else {
@@ -76,15 +76,23 @@ proc filter_pdf {W} {
 
 namespace eval tabs { ; # Tabs
 	labelframe .tabs -text {Open Tabs} -relief ridge -bd 5
-	canvas .tabs.canvas
+	canvas .test -width 10
+	canvas .tabs.canvas 
 	set count 0
-	pack .tabs -side right -fill y
+	#pack .tabs -side right -fill y
 	pack .tabs.canvas -fill both
+	place .test -relx 0.3 -y 0 -relwidth 0.3 -relheight 1
+	place .tabs -relx 0.6 -y 0 -relwidth 0.3 -relheight 1
 	proc create {txt} {
 		
 		set count $::tabs::count
 		pack [button .tabs.canvas.button$count -width 25 -text $txt -relief solid -cursor hand2] -expand 1 -fill none -pady 0.1in
-	incr ::tabs::count
+		incr ::tabs::count
+		set path [file join $::ePath $txt]
+		set fh [open $path r]
+		set str [read $fh]
+		.test create text 80 0 -text $str -width 80
+		#puts $str
 	}
 }
 
@@ -228,7 +236,7 @@ proc set_statusbar {what} {
 # Bind Things
 $c config -command get_items
 $b config -command change_dir
-bind $e <Visibility> { "[$c cget -command]" ~/TestPDF  ; Adjustf}
+bind $e <Visibility> { "[$c cget -command]" [file normalize ~/TestPDF]  ; Adjustf}
 bind $e <<ListboxSelect>> {list_select %W}
 bind $b <Motion> { set_statusbar [from_ns Tooltip %W] }
 bind $c <Motion> { set_statusbar [from_ns Tooltip %W] }
