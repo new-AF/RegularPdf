@@ -5,7 +5,7 @@
 package require Tk
 
 wm title . {RegularPDF}
-wm geometry . {700x400}
+wm geometry . "700x400+[expr [winfo vrootwidth .]/2]+[expr [winfo vrootheight .]/2]"
 
 # About Dialog Window
 toplevel .1top
@@ -19,7 +19,7 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21ba" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVae {}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {}
 
 # Status Bar
 set s [label .0label -relief sunken -borderwidth 2 -text ""]
@@ -35,7 +35,7 @@ proc Reliefbutton {name args} {
 			return [expr {"[$name cget -relief]" eq "sunken"}]
 		}
 		isoff {
-			return [expr {"[$name cget -relief]" eq "raised"}]
+			return [expr {"[$name cget -relief]" eq "groove"}]
 		}
 		default {
 			set a [button $name {*}$args]
@@ -55,7 +55,7 @@ proc bind_Reliefbutton {W to} {
 proc do_Reliefbutton {W} {
 		puts "ReliefButton Defualt Binding"
 		set was [$W cget -relief]
-		set will [switch $was raised { concat sunken} sunken {concat raised} ]
+		set will [switch $was groove { concat sunken} sunken {concat groove} ]
 		$W config -relief $will
 }
 
@@ -73,16 +73,22 @@ proc filter_pdf {W} {
 	
 }
 
-namespace eval tab { ; # Tabs
-	variable  a [labelframe .1frame -text {Open Tabs}]
-	set c [canvas $a.0canvas]
-	pack $a -side right -fill y
-	pack $c -fill both
-	proc create {} {}
+namespace eval tabs { ; # Tabs
+	labelframe .tabs -text {Open Tabs} -relief ridge -bd 5
+	canvas .tabs.canvas
+	set count 0
+	pack .tabs -side right -fill y
+	pack .tabs.canvas -fill both
+	proc create {txt} {
+		
+		set count $::tabs::count
+		pack [button .tabs.canvas.button$count -width 25 -text $txt -relief solid -cursor hand2] -expand 1 -fill none -pady 0.1in
+	incr ::tabs::count
+	}
 }
 
 # List box Frame
-set a [labelframe .0frame  -text "Items in current directory" ]
+set a [labelframe .0frame  -text "Items in current directory" -relief ridge -bd 5]
 
 set buttonsBar [frame $a.0frame]
 # Filter PDF button
@@ -97,7 +103,7 @@ set d [ttk::separator .0frame.0separator -orient horizontal]
 set dd [ttk::separator .0frame.1separator -orient horizontal]
 
 # List box
-set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor blue -cursor hand2 -activestyle dotbox -selectmode single -listvar eVar]
+set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor [. cget -bg] -cursor hand2 -activestyle none -selectmode single -listvar eVar]
 set f [listbox $a.1list -relief flat -highlightthickness 2 -highlightcolor red -cursor hand2 -activestyle dotbox -bg [. cget -bg] -listvar fVar]
 
 proc distribute_scroll {things args} { foreach v $things { $v {*}$args } }
@@ -109,10 +115,11 @@ $f config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 # Pack "Items in current directory"
 
 #pack $s -side top -fill x
-pack $a -side left -expand false -fill y -padx 5 -pady 5
+pack $a -side left -expand false -fill y
 pack $d -fill x
 pack $buttonsBar -fill x
-pack $b $c $j  -side right -anchor ne -padx 10
+pack $b $c $j  -side right -anchor ne -padx 5
+foreach v {$b $c $j} {[subst $v] config -relief groove}
 pack $h  -side bottom  -fill x
 pack $dd -fill x
 pack $f -side left -expand 1 -fill y
@@ -182,6 +189,7 @@ proc list_select {w} {
 	set from $::ePath
 	
 	set i [$w curselection]
+	set txt [$w get $i]
 	if {$i == {}} {
 		return
 	} elseif {$i == 0} {
@@ -189,10 +197,10 @@ proc list_select {w} {
 		set to [file dirname $from]
 		
 	} elseif [expr {$i >= $::eDirCount}] {
-		puts {A FILEEEEEEEEEEE}
+		::tabs::create $txt
 		return
 	} else {
-		set to [file join $from [$w get $i]]
+		set to [file join $from $txt]
 		
 	}
 	puts "from {$from} to {$to}"
@@ -248,9 +256,15 @@ bind $e <Leave> {
 	#puts $item
 }
 
+proc get_center {win {before 1}} {
+	set w [expr [winfo vrootwidth $win]/2]
+	set h [expr [winfo vrootheight $win]/2]
+	
 
-button .mButton -text {Button 1} -bg #123456 -fg white
-place .mButton -relx 0.5 -rely 0.5 -anchor center
+	return "+$w+$h[switch $before 1 {} 0 {}]"
+}
+#button .mButton -text {Button 1} -bg #123456 -fg white
+#place .mButton -relx 0.5 -rely 0.5 -anchor center
 
 # Root Menu
 menu .mMenu
@@ -258,7 +272,7 @@ menu .mMenu
 
 # Help->About Menu
 menu .mMenu.mHelp
-.mMenu.mHelp add command -command "wm deicon $z" -label About
+.mMenu.mHelp add command -command "wm deicon $z; wm geometry $z [get_center $z]" -label About
 .mMenu add cascade -label Help -menu .mMenu.mHelp
 
 console show
