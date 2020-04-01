@@ -73,34 +73,64 @@ proc filter_pdf {W} {
 	}
 	
 }
-
-namespace eval tabs { ; # Tabs
-	labelframe .tabs -text {Current Tabs} -relief ridge -bd 5
-	canvas .canvas -highlightbackground blue
-	canvas .tabs.canvas 
-	button .tabs.canvas.add -text "\ud83d\uddcb Open New Document" -relief groove
-	set count 0
-	pack .tabs.canvas -fill both
-	pack .tabs.canvas.add -fill x
-	place .canvas -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
-	place .tabs -relx 0.66 -y 0 -relwidth 0.3 -relheight 1
-	
-	proc create {txt} {
+oo::class create SingleTab {
+	variable txt str path fh b str0
+	constructor {tempcount {temptxt ""}} {
+#		my variable str0
+		set txt $temptxt
 		
-		set count $::tabs::count
-		pack [button .tabs.canvas.button$count -width 25 -text $txt -relief groove -cursor hand2] -expand 1 -fill none -pady 0.1in
-		incr ::tabs::count
+		set com "[self] clicked"
+		set b [button .tabs.canvas.button$tempcount -text [expr { $temptxt eq {} ? "Blank Document" : $temptxt }] -relief groove -cursor hand2 -command $com]
+		if ![string equal $txt ""] {
+
 		set path [file join $::ePath $txt]
 		set fh [open $path r]
 		set str [read $fh]
-		set w [winfo width .canvas]
-		puts rrrrrrrrrr$w
-		.canvas create text 10 10 -text $str -width $w
 		#puts $str
+		} else {
+		set str {Blank Document}
+		}
+		
+		my clicked
 	}
-	proc width_canvas {} {}
-}
+	 method get {} {
+	 	return $b
+	 }
+	 method close {} {
+	 	close fh
+	 }
+	 method clicked {} {
+	 	.canvas itemconfigure TEXT -text $str
+	 }
 
+}
+oo::class create Tabs {
+	variable fcount newcount lobj
+	constructor {} {
+	labelframe .tabs -text {Current Tabs} -relief ridge -bd 5
+	canvas .canvas -highlightbackground blue
+	canvas .tabs.canvas
+	set com "[self] create {}"
+	button .tabs.canvas.add -text "\ud83d\uddcb Create New Document" -relief groove -command $com
+	set fcount 0
+	set newcount 0
+	pack .tabs.canvas -fill both
+	pack .tabs.canvas.add -fill x -pady 0.05in
+	place .canvas -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
+	place .tabs -relx 0.66 -y 0 -relwidth 0.3 -relheight 1
+	puts "THEEESSEE [winfo width .canvas] KK [.canvas create text 10 10 -text {TEST TEST} -tag TEXT ]"
+	}
+	method create {txt} {
+		
+		set new [SingleTab new [expr $fcount+$newcount] $txt]
+		lappend lobj $new
+		pack [$new get] -fill x -pady 0.05in
+		switch $txt {} {incr newcount} default {incr fcount}
+		
+	}
+	
+}
+Tabs create tabs
 # List box Frame
 set a [labelframe .0frame  -text "Items in current directory" -relief ridge -bd 5]
 
@@ -212,7 +242,7 @@ proc list_select {w} {
 		set to [file dirname $from]
 		
 	} elseif [expr {$i >= $::eDirCount}] {
-		::tabs::create $txt
+		tabs create $txt
 		return
 	} else {
 		set to [file join $from $txt]
