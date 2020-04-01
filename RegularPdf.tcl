@@ -3,7 +3,7 @@
 # Description: PDF Authoring Tool
 
 package require Tk
-
+package require TclOO
 wm title . {RegularPDF}
 wm geometry . "700x400+[expr [winfo vrootwidth .]/2]+[expr [winfo vrootheight .]/2]"
 
@@ -75,25 +75,30 @@ proc filter_pdf {W} {
 }
 
 namespace eval tabs { ; # Tabs
-	labelframe .tabs -text {Open Tabs} -relief ridge -bd 5
-	canvas .test -width 10
+	labelframe .tabs -text {Current Tabs} -relief ridge -bd 5
+	canvas .canvas -highlightbackground blue
 	canvas .tabs.canvas 
+	button .tabs.canvas.add -text "\ud83d\uddcb Open New Document" -relief groove
 	set count 0
-	#pack .tabs -side right -fill y
 	pack .tabs.canvas -fill both
-	place .test -relx 0.3 -y 0 -relwidth 0.3 -relheight 1
-	place .tabs -relx 0.6 -y 0 -relwidth 0.3 -relheight 1
+	pack .tabs.canvas.add -fill x
+	place .canvas -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
+	place .tabs -relx 0.66 -y 0 -relwidth 0.3 -relheight 1
+	
 	proc create {txt} {
 		
 		set count $::tabs::count
-		pack [button .tabs.canvas.button$count -width 25 -text $txt -relief solid -cursor hand2] -expand 1 -fill none -pady 0.1in
+		pack [button .tabs.canvas.button$count -width 25 -text $txt -relief groove -cursor hand2] -expand 1 -fill none -pady 0.1in
 		incr ::tabs::count
 		set path [file join $::ePath $txt]
 		set fh [open $path r]
 		set str [read $fh]
-		.test create text 80 0 -text $str -width 80
+		set w [winfo width .canvas]
+		puts rrrrrrrrrr$w
+		.canvas create text 10 10 -text $str -width $w
 		#puts $str
 	}
+	proc width_canvas {} {}
 }
 
 # List box Frame
@@ -124,7 +129,8 @@ $f config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 # Pack "Items in current directory"
 
 #pack $s -side top -fill x
-pack $a -side left -expand false -fill y
+#pack $a -side left -expand false -fill y
+place $a -relx 0.02 -y 0 -relwidth 0.3 -relheight 1
 pack $d -fill x
 pack $buttonsBar -fill x
 pack $b $c $j  -side right -anchor ne -padx 5
