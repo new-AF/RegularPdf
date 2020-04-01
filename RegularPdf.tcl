@@ -109,6 +109,7 @@ oo::class create Tabs {
 	constructor {} {
 	labelframe .tabs -text {Current Tabs} -relief ridge -bd 5
 	canvas .canvas -highlightbackground blue
+	
 	canvas .tabs.canvas
 	set com "[self] create {}"
 	button .tabs.canvas.add -text "\ud83d\uddcb Create New Document" -relief groove -command $com
@@ -118,7 +119,9 @@ oo::class create Tabs {
 	pack .tabs.canvas.add -fill x -pady 0.05in
 	place .canvas -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
 	place .tabs -relx 0.66 -y 0 -relwidth 0.3 -relheight 1
-	puts "THEEESSEE [winfo width .canvas] KK [.canvas create text 10 10 -text {TEST TEST} -tag TEXT ]"
+	puts "[.canvas create text 10 10 -text {BLANK CANVAS TEXT} -tag TEXT ]"
+	set com "[self] width_changed %W"
+	bind .canvas <Configure> $com
 	}
 	method create {txt} {
 		
@@ -127,6 +130,12 @@ oo::class create Tabs {
 		pack [$new get] -fill x -pady 0.05in
 		switch $txt {} {incr newcount} default {incr fcount}
 		
+	}
+	method width_changed {w} {
+		set old [.canvas itemcget TEXT -width] 
+		set new [winfo width .canvas]
+		puts "<configure event> old canas TEXT width $old new $new"
+		.canvas itemconfigure TEXT -width $new
 	}
 	
 }
