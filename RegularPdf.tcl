@@ -80,7 +80,7 @@ oo::class create SingleTab {
 		set txt $temptxt
 		
 		set com "[self] clicked"
-		set b [button .tabs.canvas.button$tempcount -text [expr { $temptxt eq {} ? "Blank Document" : $temptxt }] -relief groove -cursor hand2 -command $com]
+		set b [button .tabs.canvas.button$tempcount -text [expr { $temptxt eq {} ? "Blank Document Text" : $temptxt }] -relief groove -cursor hand2 -command $com]
 		if ![string equal $txt ""] {
 
 		set path [file join $::ePath $txt]
@@ -100,15 +100,20 @@ oo::class create SingleTab {
 	 	close fh
 	 }
 	 method clicked {} {
-	 	.canvas itemconfigure TEXT -text $str
+	 	.main.canvas itemconfigure TEXT -text $str
+	 	
 	 }
 
 }
 oo::class create Tabs {
-	variable fcount newcount lobj
+	variable fcount newcount lobj sobj
+	
 	constructor {} {
 	labelframe .tabs -text {Current Tabs} -relief ridge -bd 5
-	canvas .canvas -highlightbackground blue
+	labelframe .main -relief groove -bd 5
+	canvas .main.canvas -highlightbackground blue
+	
+	#create_scrolls .canvas
 	
 	canvas .tabs.canvas
 	set com "[self] create {}"
@@ -117,11 +122,14 @@ oo::class create Tabs {
 	set newcount 0
 	pack .tabs.canvas -fill both
 	pack .tabs.canvas.add -fill x -pady 0.05in
-	place .canvas -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
+	place .main -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
+	pack .main.canvas -expand 1 -fill both
 	place .tabs -relx 0.66 -y 0 -relwidth 0.3 -relheight 1
-	puts "[.canvas create text 10 10 -text {BLANK CANVAS TEXT} -tag TEXT ]"
+	
+	set pad [.main.canvas cget -highlightthickness]
+	puts "[.main.canvas create text [expr 0+$pad] [expr 0+$pad] -text {	INITIAL TEXT} -tag TEXT -anchor nw]"
 	set com "[self] width_changed %W"
-	bind .canvas <Configure> $com
+	bind .main.canvas <Configure> $com
 	}
 	method create {txt} {
 		
@@ -132,10 +140,14 @@ oo::class create Tabs {
 		
 	}
 	method width_changed {w} {
-		set old [.canvas itemcget TEXT -width] 
-		set new [winfo width .canvas]
-		puts "<configure event> old canas TEXT width $old new $new"
-		.canvas itemconfigure TEXT -width $new
+		set old [.main.canvas itemcget TEXT -width] 
+		set new [winfo width .main.canvas]
+		#puts "<configure event> old canas TEXT width $old new $new"
+		.main.canvas itemconfigure TEXT -width $new
+		
+	}
+	method create_scrolls {args} {
+		
 	}
 	
 }
