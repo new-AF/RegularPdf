@@ -73,6 +73,27 @@ proc filter_pdf {W} {
 	}
 	
 }
+oo::class create Sanvas {
+	variable main item scrollx scrolly
+	constructor {name args} {
+		set where [string last $args -myplace]
+		if ![string equal $where -1 ] {
+			string replace $where [expr $where+1] ""
+		}
+		set main [labelframe $name -relief groove -bd 5]
+		set item [canvas $name.canvas]
+		set scrollx [scrollbar -orient horizontal -relief groove -command "$item xview"]
+		set scrolly [scrollbar -orient vertical -relief groove -command "$item yview"]
+		$item configure -xscrollcommand "$scrollx set" -yscrollcommand "$scrolly set"
+		place $item -side right -expand 1 -fill both
+		place $scrolly -side right -fill y
+		place $scrollx -fill x
+	}
+	
+	method get {thing} {
+		return [subst $thing]
+	}
+}
 oo::class create SingleTab {
 	variable txt str path fh b str0
 	constructor {tempcount {temptxt ""}} {
