@@ -129,13 +129,22 @@ oo::class create SingleTab {
 oo::class create Tabs {
 	variable fcount newcount lobj sobj
 	
+	method create_main {} {
+		labelframe .main -relief groove -bd 5
+		canvas .main.canvas -highlightbackground blue
+		place .main -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
+		pack .main.canvas -expand 1 -fill both
+		set pad [.main.canvas cget -highlightthickness]
+		puts "[.main.canvas create text [expr 0+$pad] [expr 0+$pad] -text {	INITIAL TEXT} -tag TEXT -anchor nw]"
+		set com "[self] width_changed %W"
+		bind .main.canvas <Configure> $com
+		#create_scrolls .canvas
+	}
 	constructor {} {
+	
+	my create_main
+	
 	labelframe .tabs -text {Current Tabs} -relief ridge -bd 5
-	labelframe .main -relief groove -bd 5
-	canvas .main.canvas -highlightbackground blue
-	
-	#create_scrolls .canvas
-	
 	canvas .tabs.canvas
 	set com "[self] create {}"
 	button .tabs.canvas.add -text "\ud83d\uddcb Create New Document" -relief groove -command $com
@@ -143,14 +152,10 @@ oo::class create Tabs {
 	set newcount 0
 	pack .tabs.canvas -fill both
 	pack .tabs.canvas.add -fill x -pady 0.05in
-	place .main -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
-	pack .main.canvas -expand 1 -fill both
+	
 	place .tabs -relx 0.66 -y 0 -relwidth 0.3 -relheight 1
 	
-	set pad [.main.canvas cget -highlightthickness]
-	puts "[.main.canvas create text [expr 0+$pad] [expr 0+$pad] -text {	INITIAL TEXT} -tag TEXT -anchor nw]"
-	set com "[self] width_changed %W"
-	bind .main.canvas <Configure> $com
+	
 	}
 	method create {txt} {
 		
@@ -165,9 +170,6 @@ oo::class create Tabs {
 		set new [winfo width .main.canvas]
 		#puts "<configure event> old canas TEXT width $old new $new"
 		.main.canvas itemconfigure TEXT -width $new
-		
-	}
-	method create_scrolls {args} {
 		
 	}
 	
