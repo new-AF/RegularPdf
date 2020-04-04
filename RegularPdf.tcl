@@ -75,25 +75,48 @@ proc filter_pdf {W} {
 }
 oo::class create Sanvas {
 	variable main item scrollx scrolly
+	
 	constructor {name args} {
-		set where [string last $args -myplace]
-		if ![string equal $where -1 ] {
-			string replace $where [expr $where+1] ""
-		}
-		set main [labelframe $name -relief groove -bd 5]
-		set item [canvas $name.canvas]
-		set scrollx [scrollbar -orient horizontal -relief groove -command "$item xview"]
-		set scrolly [scrollbar -orient vertical -relief groove -command "$item yview"]
-		$item configure -xscrollcommand "$scrollx set" -yscrollcommand "$scrolly set"
+		
+		set res [my parse $args]
+		
+		set main [labelframe $name -relief groove -bd 5 {*}$res(frame)]
+		set item [canvas $name.canvas {*}$res(canvas)]
+		
+		my set_scroll $res
+		
 		place $item -side right -expand 1 -fill both
 		place $scrolly -side right -fill y
 		place $scrollx -fill x
 	}
 	
-	method get {thing} {
-		return [subst $thing]
+	method set_scroll {res} {
+		set scrollx [scrollbar -orient horizontal -relief groove -command "$item xview" {*}$res(scrollx)]
+		set scrolly [scrollbar -orient vertical -relief groove -command "$item yview" {*}$res(scrolly)]
+		$item configure -xscrollcommand "$scrollx set" -yscrollcommand "$scrolly set"
 	}
-}
+	method config {what args} {
+		[susbt $what] config {*}$args
+	}
+	method parse {args} {
+		set tmp(none) {}
+		foreach v {frame canvas scrollx scrolly} {
+			set i [lsearch $args -$v] ; if ![llength $i] { continue }
+			set end [lsearch -start $i \} ] ; if [expr {$end == -1} ] { set end end }
+			set tmp($v) [lrange $args $i $end]
+		}
+		return tmp
+	}
+	method frame {args} {
+		if [string equal $args {}] {my config main $args} 
+		return $main
+	}
+	method canvas {args} {
+		if [string equal $args {}] {my config item $args }
+		return $item
+	}
+	
+	}
 oo::class create SingleTab {
 	variable txt str path fh b str0
 	constructor {tempcount {temptxt ""}} {
@@ -139,6 +162,7 @@ oo::class create Tabs {
 		set com "[self] width_changed %W"
 		bind .main.canvas <Configure> $com
 		#create_scrolls .canvas
+		
 	}
 	constructor {} {
 	
