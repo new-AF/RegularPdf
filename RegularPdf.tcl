@@ -19,7 +19,7 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdfWS [dict create null \0 htab \9 lfeed \a formfeed \c creturn \d s \20]
 
 # Status Bar
 set s [label .0label -relief sunken -borderwidth 2 -text ""]
@@ -73,28 +73,47 @@ proc filter_pdf {W} {
 	}
 	
 }
+proc iseol {thing} {
+	string match *\d\a*
+}
+variable Pdf
+proc pdfparse {str} {
+	
+	set l [string length $str]
+	set b 0
+	puts [lrepeat 10 *]
+	while {[set v [string range $str $b [incr b 7]]] != {} } {
+		puts "\nCounter->$b String\{${v}\}\n"
+		foreach vv [split $v ""] {puts -nonewline "[format %X [scan $vv %c]] "}
+		foreach vv [split $v ""] {puts -nonewline "$vv "}
+		puts {}
+	}
+	puts [lrepeat 10 *]
+}
 oo::class create Sanvas {
+	
 	variable main item scrollx scrolly
 	
 	constructor {name args} {
 		
-		set res [my parse $args]
+		array set res $[my parse $args]
 		
-		set main [labelframe $name -relief groove -bd 5 {*}$res(frame)]
-		set item [canvas $name.canvas {*}$res(canvas)]
 		
-		my set_scroll $res
+		set main [labelframe $name -relief groove -bd 5 ]
+		set item [canvas $name.canvas ]
+		# Scrolling
+		set scrollx [scrollbar $name.scrollx -orient horizontal -relief groove -command "$item xview" ]
+		set scrolly [scrollbar $name.scrolly -orient vertical -relief groove -command "$item yview" ]
+		$item configure -xscrollcommand "$scrollx set" -yscrollcommand "$scrolly set"
 		
-		place $item -side right -expand 1 -fill both
-		place $scrolly -side right -fill y
-		place $scrollx -fill x
+		pack $item -side right -expand 1 -fill both
+		pack $scrolly -side right -fill y
+		pack $scrollx -fill x
+		
+		return $main
 	}
 	
-	method set_scroll {res} {
-		set scrollx [scrollbar -orient horizontal -relief groove -command "$item xview" {*}$res(scrollx)]
-		set scrolly [scrollbar -orient vertical -relief groove -command "$item yview" {*}$res(scrolly)]
-		$item configure -xscrollcommand "$scrollx set" -yscrollcommand "$scrolly set"
-	}
+	
 	method config {what args} {
 		[susbt $what] config {*}$args
 	}
@@ -102,25 +121,23 @@ oo::class create Sanvas {
 		set tmp(none) {}
 		foreach v {frame canvas scrollx scrolly} {
 			set i [lsearch $args -$v] ; if ![llength $i] { continue }
-			set end [lsearch -start $i \} ] ; if [expr {$end == -1} ] { set end end }
+			set end [lsearch -start $i $args \}*] ; if [expr {$end == -1} ] { set end end }
 			set tmp($v) [lrange $args $i $end]
 		}
-		return tmp
+		return [array get tmp]
 	}
-	method frame {args} {
+	method get {what} {
 		if [string equal $args {}] {my config main $args} 
 		return $main
 	}
-	method canvas {args} {
-		if [string equal $args {}] {my config item $args }
-		return $item
-	}
 	
 	}
-oo::class create SingleTab {
-	variable txt str path fh b str0
+oo::class create SingleTab { 
+	
+	variable txt str path fh b 
+	
 	constructor {tempcount {temptxt ""}} {
-#		my variable str0
+
 		set txt $temptxt
 		
 		set com "[self] clicked"
@@ -128,8 +145,8 @@ oo::class create SingleTab {
 		if ![string equal $txt ""] {
 
 		set path [file join $::ePath $txt]
-		set fh [open $path r]
-		set str [read $fh]
+		set fh [open $path r] ; fconfigure $fh -encoding binary ;# -translation binary -eofchar {}
+		set str [read -nonewline $fh]
 		#puts $str
 		} else {
 		set str {Blank Document}
@@ -145,28 +162,18 @@ oo::class create SingleTab {
 	 }
 	 method clicked {} {
 	 	.main.canvas itemconfigure TEXT -text $str
-	 	
+	 	pdfparse $str
 	 }
 
 }
-oo::class create Tabs {
+oo::class create Tabs { 
+	
 	variable fcount newcount lobj sobj
 	
-	method create_main {} {
-		labelframe .main -relief groove -bd 5
-		canvas .main.canvas -highlightbackground blue
-		place .main -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
-		pack .main.canvas -expand 1 -fill both
-		set pad [.main.canvas cget -highlightthickness]
-		puts "[.main.canvas create text [expr 0+$pad] [expr 0+$pad] -text {	INITIAL TEXT} -tag TEXT -anchor nw]"
-		set com "[self] width_changed %W"
-		bind .main.canvas <Configure> $com
-		#create_scrolls .canvas
-		
-	}
 	constructor {} {
 	
 	my create_main
+	#puts "---->>> [Sanvas new .main] <<<"
 	
 	labelframe .tabs -text {Current Tabs} -relief ridge -bd 5
 	canvas .tabs.canvas
@@ -181,6 +188,20 @@ oo::class create Tabs {
 	
 	
 	}
+	
+	method create_main {} {
+		labelframe .main -relief groove -bd 5
+		canvas .main.canvas -highlightbackground blue
+		place .main -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
+		pack .main.canvas -expand 1 -fill both
+		set pad [.main.canvas cget -highlightthickness]
+		puts "[.main.canvas create text [expr 0+$pad] [expr 0+$pad] -text {	INITIAL TEXT} -tag TEXT -anchor nw]"
+		set com "[self] width_changed %W"
+		bind .main.canvas <Configure> $com
+		#create_scrolls .canvas
+		
+	}
+	
 	method create {txt} {
 		
 		set new [SingleTab new [expr $fcount+$newcount] $txt]
@@ -387,5 +408,4 @@ menu .mMenu
 menu .mMenu.mHelp
 .mMenu.mHelp add command -command "wm deicon $z; wm geometry $z [get_center $z]" -label About
 .mMenu add cascade -label Help -menu .mMenu.mHelp
-
-console show
+.mMenu add command -label Console -command {console show}
