@@ -77,59 +77,41 @@ proc iseol {thing} {
 	string match *\d\a*
 }
 variable Pdf
+proc writemain {line} {
+
+
+}
 proc pdfparse {str} {
+	set fh [open "|[file join $::ePath hex.exe] -b [file join $::ePath out.txt]" w+]
 	
 	set l [string length $str]
-	set b 0
+	set calc [expr 8*4+4*4-1] ; #12 ab cd 32 ....
 	puts [lrepeat 10 *]
-	while {[set v [string range $str $b [incr b 7]]] != {} } {
-		puts "\nCounter->$b String\{${v}\}\n"
-		foreach vv [split $v ""] {puts -nonewline "[format %X [scan $vv %c]] "}
-		foreach vv [split $v ""] {puts -nonewline "$vv "}
-		puts {}
+	
+	set lines {}
+	set i 0
+	while {[incr i]<100} {
+	append lines [string range [gets $fh] 0 $calc]
 	}
-	puts [lrepeat 10 *]
+	puts [concat $lines]
+	#set lines [read $fh]
+	#.main.canvas itemconfigure TEXT -text $lines
+	puts [lrepeat 10 *] ; close $fh
 }
-oo::class create Sanvas {
+proc create_scrolls {name} {
 	
-	variable main item scrollx scrolly
+	set main [winfo parent $name]
 	
-	constructor {name args} {
-		
-		array set res $[my parse $args]
-		
-		
-		set main [labelframe $name -relief groove -bd 5 ]
-		set item [canvas $name.canvas ]
 		# Scrolling
-		set scrollx [scrollbar $name.scrollx -orient horizontal -relief groove -command "$item xview" ]
-		set scrolly [scrollbar $name.scrolly -orient vertical -relief groove -command "$item yview" ]
-		$item configure -xscrollcommand "$scrollx set" -yscrollcommand "$scrolly set"
+		scrollbar ${main}.scrollx -orient horizontal -relief groove -command "$name xview"
+		scrollbar ${main}.scrolly -orient vertical -relief groove -command "$name yview"
+		$name configure -xscrollcommand "${main}.scrollx set" -yscrollcommand "${main}.scrolly set"
 		
-		pack $item -side right -expand 1 -fill both
-		pack $scrolly -side right -fill y
-		pack $scrollx -fill x
-		
-		return $main
-	}
-	
-	
-	method config {what args} {
-		[susbt $what] config {*}$args
-	}
-	method parse {args} {
-		set tmp(none) {}
-		foreach v {frame canvas scrollx scrolly} {
-			set i [lsearch $args -$v] ; if ![llength $i] { continue }
-			set end [lsearch -start $i $args \}*] ; if [expr {$end == -1} ] { set end end }
-			set tmp($v) [lrange $args $i $end]
-		}
-		return [array get tmp]
-	}
-	method get {what} {
-		if [string equal $args {}] {my config main $args} 
-		return $main
-	}
+		pack forget $name 
+		pack ${main}.scrollx -side bottom  -fill x
+		pack $name -side left -fill y
+		pack ${main}.scrolly -side right -fill y
+		#return $main
 	
 	}
 oo::class create SingleTab { 
@@ -145,8 +127,10 @@ oo::class create SingleTab {
 		if ![string equal $txt ""] {
 
 		set path [file join $::ePath $txt]
-		set fh [open $path r] ; fconfigure $fh -encoding binary ;# -translation binary -eofchar {}
-		set str [read -nonewline $fh]
+		set fh [open $path r]
+		fconfigure $fh -encoding ascii ;# -translation binary -eofchar {}
+		set str [encoding convertto ascii [read -nonewline $fh]]
+		
 		#puts $str
 		} else {
 		set str {Blank Document}
@@ -173,7 +157,6 @@ oo::class create Tabs {
 	constructor {} {
 	
 	my create_main
-	#puts "---->>> [Sanvas new .main] <<<"
 	
 	labelframe .tabs -text {Current Tabs} -relief ridge -bd 5
 	canvas .tabs.canvas
@@ -195,10 +178,10 @@ oo::class create Tabs {
 		place .main -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
 		pack .main.canvas -expand 1 -fill both
 		set pad [.main.canvas cget -highlightthickness]
-		puts "[.main.canvas create text [expr 0+$pad] [expr 0+$pad] -text {	INITIAL TEXT} -tag TEXT -anchor nw]"
+		.main.canvas create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
 		set com "[self] width_changed %W"
 		bind .main.canvas <Configure> $com
-		#create_scrolls .canvas
+		create_scrolls .main.canvas
 		
 	}
 	
@@ -215,6 +198,7 @@ oo::class create Tabs {
 		set new [winfo width .main.canvas]
 		#puts "<configure event> old canas TEXT width $old new $new"
 		.main.canvas itemconfigure TEXT -width $new
+		$w config -scrollregion [$w bbox all]
 		
 	}
 	
@@ -258,7 +242,7 @@ pack $h  -side bottom  -fill x
 pack $dd -fill x
 pack $f -side left -expand 1 -fill y
 pack $e -side left -expand 1 -fill both
-pack $g -side left -expand 1 -fill y
+pack $g -side left -fill y
 #pack config $j -padx 0
 
 proc Adjustf {} {
