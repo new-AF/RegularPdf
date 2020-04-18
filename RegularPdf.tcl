@@ -19,7 +19,7 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdfWS [dict create null \0 htab \9 lfeed \a formfeed \c creturn \d s \20]
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {}
 
 # Status Bar
 set s [label .0label -relief sunken -borderwidth 2 -text ""]
@@ -73,30 +73,37 @@ proc filter_pdf {W} {
 	}
 	
 }
-proc iseol {thing} {
-	string match *\d\a*
-}
-variable Pdf
-proc writemain {line} {
 
+proc pdf {com args} {
 
-}
-proc pdfparse {str} {
-	set fh [open "|[file join $::ePath hex.exe] -b [file join $::ePath out.txt]" w+]
+	variable null \x0 	htab \x9 	nextline \xa	nextpage \xc	cr \xd		space \x20
+	set ar {-all -indices -inline}
+	if {{-is} in $args} { lset $ar [lsearch $ar -inline ] "" ; lset $args [lsearch $args -is ] "" }
 	
-	set l [string length $str]
-	set calc [expr 8*4+4*4-1] ; #12 ab cd 32 ....
+	set target [expr { [llength $args] ? [concat $args] : $::pdff }] 
+	
+	set new [list]	; set result [switch $com {
+		
+		wspace {
+			regexp {*}$ar "(?:$null)|(?:$htab)|(?:$nextpage)|(?:$space)" $target
+		}
+	
+	}]
+	
+	set len [llength $result]
+	if {{-indices} in $ar} { for {set index 0} {$index < $len} {incr index 2} {lappend new [lindex $result $index]} }
+	return $new
+}
+
+proc pdfparse {objpath} { #object is ::oo::objxxx it is result of [self] from the calling Object. 
+	
+	set str [subst $[subst $objpath]::str] ; puts "**pdf file Legnth: [string length $str] Bytes**"
+	
+	#set calc [expr 8*4+4*4-1] ; #12 ab cd 32 ....
 	puts [lrepeat 10 *]
 	
-	set lines {}
-	set i 0
-	while {[incr i]<100} {
-	append lines [string range [gets $fh] 0 $calc]
-	}
-	puts [concat $lines]
-	#set lines [read $fh]
-	#.main.canvas itemconfigure TEXT -text $lines
-	puts [lrepeat 10 *] ; close $fh
+	set ::pdff $str
+
 }
 proc create_scrolls {name} {
 	
@@ -109,8 +116,8 @@ proc create_scrolls {name} {
 		
 		pack forget $name 
 		pack ${main}.scrollx -side bottom  -fill x
-		pack $name -side left -fill y
-		pack ${main}.scrolly -side right -fill y
+		pack $name -side left  -fill y
+		pack ${main}.scrolly -side right -expand 1 -fill y
 		#return $main
 	
 	}
@@ -127,15 +134,15 @@ oo::class create SingleTab {
 		if ![string equal $txt ""] {
 
 		set path [file join $::ePath $txt]
-		set fh [open $path r]
-		fconfigure $fh -encoding ascii ;# -translation binary -eofchar {}
-		set str [encoding convertto ascii [read -nonewline $fh]]
+		set fh [open $path]
+		fconfigure $fh -translation binary
+		set str  [read $fh]
 		
-		#puts $str
 		} else {
 		set str {Blank Document}
 		}
 		
+		#after 1000 "[self] clicked"
 		my clicked
 	}
 	 method get {} {
@@ -145,8 +152,8 @@ oo::class create SingleTab {
 	 	close fh
 	 }
 	 method clicked {} {
-	 	.main.canvas itemconfigure TEXT -text $str
-	 	pdfparse $str
+	 	.main.canvas itemconfigure TEXT -text [string range $str 0 100]
+	 	pdfparse [self]
 	 }
 
 }
