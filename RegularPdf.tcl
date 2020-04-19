@@ -1,7 +1,7 @@
 # RegularPDF
 # Author: Abdullah Fatota
 # Description: PDF Authoring Tool
-#set pp {C:/Users/abdullah/Downloads/tcltk-8.6.10-barebones-x64/bin}  ; source [file join $pp parsetcl.tcl] ; source [file join $pp debug.tcl] 
+
 package require Tk
 package require TclOO
 wm title . {RegularPDF}
@@ -76,7 +76,7 @@ proc filter_pdf {W} {
 
 proc pdf {com args} {
 
-	variable null \x0 	htab \x9 	nextline \xa	nextpage \xc	cr \xd		space \x20
+	variable Info [dict create]	 null \x0 	htab \x9 	nextline \xa	nextpage \xc	cr \xd		space \x20
 	set ar {-all -indices -inline}
 	if {{-is} in $args} { lset $ar [lsearch $ar -inline ] "" ; lset $args [lsearch $args -is ] "" }
 	
@@ -87,11 +87,16 @@ proc pdf {com args} {
 		wspace {
 			regexp {*}$ar "(?:$null)|(?:$htab)|(?:$nextpage)|(?:$space)" $target
 		}
+		
+		default {
+			puts "::pdf -> Unrecognized Command"
+			return
+		}
 	
 	}]
 	
 	set len [llength $result]
-	if {{-indices} in $ar} { for {set index 0} {$index < $len} {incr index 2} {lappend new [lindex $result $index]} }
+	if {{-indices} in $ar} { for {set index 0} {$index < $len} {incr index 1} {lappend new [lindex [lindex $result $index] 0]} }
 	return $new
 }
 
