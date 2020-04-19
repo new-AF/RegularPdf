@@ -1,7 +1,7 @@
 # RegularPDF
 # Author: Abdullah Fatota
 # Description: PDF Authoring Tool
-
+#set pp {C:/Users/abdullah/Downloads/tcltk-8.6.10-barebones-x64/bin}  ; source [file join $pp parsetcl.tcl] ; source [file join $pp debug.tcl] 
 package require Tk
 package require TclOO
 wm title . {RegularPDF}
