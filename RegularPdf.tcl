@@ -8,6 +8,15 @@ wm title . {RegularPDF}
 wm geometry . "700x400+[expr [winfo vrootwidth .]/2]+[expr [winfo vrootheight .]/2]"
 
 # About Dialog Window
+proc buttonhover {w} {
+	$w config -relief ridge
+	
+}
+proc buttonleave {w} {
+	$w config -relief flat
+	
+}
+
 toplevel .1top
 wm withdraw .1top
 wm title .1top About
@@ -19,7 +28,7 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create]
 
 # Status Bar
 set s [label .0label -relief sunken -borderwidth 2 -text ""]
@@ -77,6 +86,7 @@ proc filter_pdf {W} {
 proc pdf {com args} {
 
 	variable Info [dict create]	 null \x0 	htab \x9 	nextline \xa	nextpage \xc	cr \xd		space \x20
+	set delimeter [dict create leftparan \x28 rightparan \x29 leftangle	\x3c rightangle	\x3e lefsquare	\x5b rightsquare \x5d leftcurly	\x7b rightcurly \x7d unixslash	\x2f percent \x25]
 	set ar {-all -indices -inline}
 	if {{-is} in $args} { lset $ar [lsearch $ar -inline ] "" ; lset $args [lsearch $args -is ] "" }
 	
@@ -88,6 +98,12 @@ proc pdf {com args} {
 			regexp {*}$ar "(?:$null)|(?:$htab)|(?:$nextpage)|(?:$space)" $target
 		}
 		
+		eol { ; # EOL MARKERS
+			regexp {*}$ar "(?:$cr$nextline)|(?:$cr)|(?:$nextline)" $target
+		}
+		delimeter {
+			regexp {*}$ar [join [lmap v [dict values $delimeter *] {concat (?:$v)}] |] $target
+		}
 		default {
 			puts "::pdf -> Unrecognized Command"
 			return
@@ -179,7 +195,7 @@ oo::class create Tabs {
 	pack .tabs.canvas -fill both
 	pack .tabs.canvas.add -fill x -pady 0.05in
 	
-	place .tabs -relx 0.66 -y 0 -relwidth 0.3 -relheight 1
+	place .tabs -relx 0.66 -y 0.4in -relwidth 0.3 -relheight 1
 	
 	
 	}
@@ -187,7 +203,7 @@ oo::class create Tabs {
 	method create_main {} {
 		labelframe .main -relief groove -bd 5
 		canvas .main.canvas -highlightbackground blue
-		place .main -relx 0.34 -y 0 -relwidth 0.3 -relheight 1
+		place .main -relx 0.34 -y 0.4in -relwidth 0.3 -relheight 1
 		pack .main.canvas -expand 1 -fill both
 		set pad [.main.canvas cget -highlightthickness]
 		.main.canvas create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
@@ -245,10 +261,10 @@ $f config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 
 #pack $s -side top -fill x
 #pack $a -side left -expand false -fill y
-place $a -relx 0.02 -y 0 -relwidth 0.3 -relheight 1
-pack $d -fill x
-pack $buttonsBar -fill x
-pack $b $c $j  -side right -anchor ne -padx 5
+place $a -relx 0.02 -y 0.4in -relwidth 0.3 -relheight 1 
+pack $d -fill x 				; 
+pack $buttonsBar -fill x			; 
+pack $b $c $j  -side right -anchor ne -padx 5 	
 foreach v {$b $c $j} {[subst $v] config -relief groove}
 pack $h  -side bottom  -fill x
 pack $dd -fill x
@@ -256,6 +272,23 @@ pack $f -side left -expand 1 -fill y
 pack $e -side left -expand 1 -fill both
 pack $g -side left -fill y
 #pack config $j -padx 0
+
+# ***Toolbar Buttons*** #
+proc ToolbarButton {args} {
+	puts "** args are -> $args"
+	set result [button {*}$args -relief flat]
+	bind [lindex $args 0] <Enter> {buttonhover %W}
+	bind [lindex $args 0] <Leave> {buttonleave %W}
+	return $result
+}
+
+# ***Toolbar*** #
+frame .toolbar -relief flat -bd 5 ; pack [ttk::separator .toolbar.endseparator -orient horizontal] -side bottom -expand 1 -fill x -pady 1
+pack [button .toolbar.first -text {} -relief flat -state disabled] -side left -expand 0 -fill none
+place .toolbar -x 0 -y 0 -relwidth 1 -height 0.4in
+ToolbarButton .toolbar.stackleft -text "\ud83e\udc80 Stack Left"
+pack .toolbar.stackleft -side left
+####
 
 proc Adjustf {} {
 	set test tes
@@ -361,7 +394,7 @@ bind $e <Visibility> { "[$c cget -command]" [file normalize ~/TestPDF]  ; Adjust
 bind $e <<ListboxSelect>> {list_select %W}
 bind $b <Motion> { set_statusbar [from_ns Tooltip %W] }
 bind $c <Motion> { set_statusbar [from_ns Tooltip %W] }
-#bind $j <Button> +{filter_pdf %W}
+
 bind_Reliefbutton $j filter_pdf
 proc hover {e y} {
 	set i [$e nearest $y]
@@ -397,11 +430,86 @@ proc get_center {win {before 1}} {
 #place .mButton -relx 0.5 -rely 0.5 -anchor center
 
 # Root Menu
-menu .mMenu
-. config -menu .mMenu
-
+menu .mMenu -tearoff 0
+proc setmenu {{what .mMenu}} {. config -menu $what}
+proc debug {} {
+	puts yess
+	
+}
 # Help->About Menu
-menu .mMenu.mHelp
+menu .mMenu.mHelp -tearoff 0
 .mMenu.mHelp add command -command "wm deicon $z; wm geometry $z [get_center $z]" -label About
 .mMenu add cascade -label Help -menu .mMenu.mHelp
-.mMenu add command -label Console -command {console show}
+.mMenu add command -label Console -command {console show} ; proc postmenu {name menu} { 
+			$menu post [winfo rootx .toolbar.menu$name ]  [expr [winfo rooty .toolbar.menu$name ]+[winfo height .toolbar.menu$name ]] }
+.mMenu add command -label Debug -command debug ; 
+
+proc lin {target supplied args} {
+	set result 1
+	if {{-missing} in $args} {set result [llength $args]; # result is how many missing elements of $supplied are in $target.
+		foreach v $supplied {incr result -[expr {"$v" in $target}]}
+	} else {
+	
+        	foreach v $supplied {
+        		if {$v ni $target} {set result 0; break}
+        	}
+	}
+	return $result;
+}
+puts "*** -> $misc"
+dict append misc switchmenu 1
+puts "*** -> $misc"
+proc ToolbarMenu {args}  {
+	
+	foreach command $args {
+	switch $command {
+		put {
+			foreach x {{Help .mMenu.mHelp} {Console } {Debug }} {
+				set v [lindex $x 0] 
+				set m [lindex $x 1]
+				set w [string tolower $v] 
+				
+				button .toolbar.menu$w  -text $v -relief flat
+												; #.toolbar.$w configure -font [concat [.mMenu config -font]]
+				bind .toolbar.menu$w <Enter> {buttonhover %W}
+				bind .toolbar.menu$w <Leave> {buttonleave %W} ; puts **$w**
+				
+				.toolbar.menu$w config -command "if {[string equal {} $m]} {.mMenu invoke $v} else {postmenu $w $m}"
+				
+			}
+			ToolbarButton .toolbar.switchmenu -text "\u2b9d Up Menu" -command {ToolbarMenu swap}
+			ttk::separator .toolbar.switchmenu_separator -orient vertical
+		}
+		unpack {
+			foreach v [lsearch -all -inline [winfo children .toolbar] .toolbar.menu*] {
+				try {pack forget $v } on error {} {}
+			}
+		}
+		pack {
+			foreach v [lsearch -all -inline [winfo children .toolbar] .toolbar.menu*] {
+				 try {pack $v -side left -after .toolbar.first} on error {} {}
+			}
+			
+			if [dict get $::misc switchmenu] { 
+				pack .toolbar.switchmenu -side left -before .toolbar.stackleft
+				pack .toolbar.switchmenu_separator -side left -padx 1 -fill y -after .toolbar.switchmenu
+				dict set ::misc switchmenu 0  }
+		}
+		swap { ; # like a on/off switch which to show first and hide the second
+			set str [.toolbar.switchmenu cget -text]
+			set to [lindex $str 1]
+			if {"$to" eq "Up"} {
+				ToolbarMenu unpack ; setmenu ; 
+				.toolbar.switchmenu configure -text [string map {Up Down \u2b9d \u2b9f} $str] 
+				
+			} else {
+				ToolbarMenu pack ; setmenu {} 
+				.toolbar.switchmenu configure -text [string map {Down Up \u2b9f \u2b9d} $str] }
+		}
+		
+	}
+	
+
+	
+} }
+ToolbarMenu put pack ; setmenu {}
