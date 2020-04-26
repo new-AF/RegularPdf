@@ -6,7 +6,8 @@ package require Tk
 package require TclOO
 wm title . {RegularPDF}
 wm geometry . "700x400+[expr [winfo vrootwidth .]/2]+[expr [winfo vrootheight .]/2]"
-
+panedwindow .pane -showhandle 1 -sashwidth 10 -sashpad 20 -sashrelief raised -handlepad 50
+place .pane -relx 0 -rely 0.1 -relwidth 1 -relheight 1
 # About Dialog Window
 proc buttonhover {w} {
 	$w config -relief ridge
@@ -31,9 +32,21 @@ pack $z.${v}label -side top -pady 10 -padx 2cm
 variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create]
 
 # **Stack** #
-dict append misc stackimage 
+button .left -text \ud83e\udc44 -font {-size 16}
+button .rght -text \ud83e\udc46 -font {-size 16}
+
+dict append misc  stack 1
+set stackVar {}
 proc StackThings {args} {
+	if [dict get $::misc stack] {
+		
+		#foreach v "$::a .pane.main .pane.tabs" {
+		#	bind $v <Enter> "StackThings move $v"
+		#}
+		
+	}
 	
+	place config .pane -rely 0.4
 }
 
 proc aphoto {args} { ; # alpha photo
@@ -230,36 +243,37 @@ oo::class create SingleTab {
 }
 oo::class create Tabs { 
 	
-	variable fcount newcount lobj sobj
+	variable fcount newcount lobj sobj m mc 		t tc
 	
 	constructor {} {
 	
 	my create_main
 	
-	labelframe .tabs -text {Current Tabs} -relief ridge -bd 5
-	canvas .tabs.canvas
+	
+	set t [labelframe .pane.tabs -text {Current Tabs} -relief ridge -bd 5]
+	set tc [canvas $t.canvas]
 	set com "[self] create {}"
-	button .tabs.canvas.add -text "\ud83d\uddcb Create New Document" -relief groove -command $com
+	button $tc.add -text "\ud83d\uddcb Create New Document" -relief groove -command $com
 	set fcount 0
 	set newcount 0
-	pack .tabs.canvas -fill both
-	pack .tabs.canvas.add -fill x -pady 0.05in
+	pack $tc -fill both
+	pack $tc.add -fill x -pady 0.05in
 	
-	place .tabs -relx 0.66 -y 0.4in -relwidth 0.3 -relheight 1
+	#place .tabs -relx 0.66 -y 0.4in -relwidth 0.3 -relheight 1
 	
 	
 	}
 	
 	method create_main {} {
-		labelframe .main -relief groove -bd 5
-		canvas .main.canvas -highlightbackground blue
-		place .main -relx 0.34 -y 0.4in -relwidth 0.3 -relheight 1
-		pack .main.canvas -expand 1 -fill both
-		set pad [.main.canvas cget -highlightthickness]
-		.main.canvas create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
+		set m [labelframe .pane.main -relief groove -bd 5]
+		set mc [canvas $m.canvas -highlightbackground blue]
+		#place .main -relx 0.34 -y 0.4in -relwidth 0.3 -relheight 1
+		pack $mc -expand 1 -fill both
+		set pad [$m.canvas cget -highlightthickness]
+		$mc create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
 		set com "[self] width_changed %W"
-		bind .main.canvas <Configure> $com
-		create_scrolls .main.canvas
+		bind $mc <Configure> $com
+		create_scrolls $mc
 		
 	}
 	
@@ -272,10 +286,10 @@ oo::class create Tabs {
 		
 	}
 	method width_changed {w} {
-		set old [.main.canvas itemcget TEXT -width] 
-		set new [winfo width .main.canvas]
+		set old [$mc itemcget TEXT -width] 
+		set new [winfo width $mc]
 		#puts "<configure event> old canas TEXT width $old new $new"
-		.main.canvas itemconfigure TEXT -width $new
+		$mc itemconfigure TEXT -width $new
 		$w config -scrollregion [$w bbox all]
 		
 	}
@@ -283,9 +297,9 @@ oo::class create Tabs {
 }
 Tabs create tabs
 # List box Frame
-set a [labelframe .0frame  -text "Items in current directory" -relief ridge -bd 5]
+set a [labelframe .pane.file  -text "Items in current directory" -relief ridge -bd 5]
 
-set buttonsBar [frame $a.0frame]
+set buttonsBar [frame $a.buttonbar]
 # Filter PDF button
 set j [Reliefbutton $buttonsBar.3button -text {Filter PDF files}]
 # Change directory Button
@@ -294,8 +308,8 @@ set b [button $buttonsBar.1button -text "$IconFolder"]
 set c [button $buttonsBar.0button -text $IconReload]
 #puts [$c configure]
 # Separator
-set d [ttk::separator .0frame.0separator -orient horizontal]
-set dd [ttk::separator .0frame.1separator -orient horizontal]
+set d [ttk::separator $a.0separator -orient horizontal]
+set dd [ttk::separator $a.1separator -orient horizontal]
 
 # List box
 set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor [. cget -bg] -cursor hand2 -activestyle none -selectmode single -listvar eVar]
@@ -311,7 +325,7 @@ $f config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 
 #pack $s -side top -fill x
 #pack $a -side left -expand false -fill y
-place $a -relx 0.02 -y 0.4in -relwidth 0.3 -relheight 1 
+#place $a -relx 0.02 -y 0.4in -relwidth 0.3 -relheight 1 
 pack $d -fill x 				; 
 pack $buttonsBar -fill x			; 
 pack $b $c $j  -side right -anchor ne -padx 5 	
@@ -476,8 +490,11 @@ proc get_center {win {before 1}} {
 
 	return "+$w+$h[switch $before 1 {} 0 {}]"
 }
-#button .mButton -text {Button 1} -bg #123456 -fg white
-#place .mButton -relx 0.5 -rely 0.5 -anchor center
+
+# Pane additions
+foreach v "$a .pane.main .pane.tabs" {.pane add $v -sticky nswe -stretch always
+puts "**$v**"
+}
 
 # Root Menu
 menu .mMenu -tearoff 0
@@ -506,9 +523,9 @@ proc lin {target supplied args} {
 	}
 	return $result;
 }
-puts "*** -> $misc"
+
 dict append misc switchmenu 1
-puts "*** -> $misc"
+
 proc ToolbarMenu {args}  {
 	
 	foreach command $args {
