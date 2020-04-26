@@ -29,7 +29,7 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" Cursor "\u25a0" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {}
 
 proc grand_annoucement {args} {
 	puts "*-*-*-*$args*-*-*-*-*"
@@ -217,13 +217,26 @@ proc pdfparse {objpath} { #object is ::oo::objxxx it is result of [self] from th
 	set ::pdff $str
 
 }
-set tVar {}
+
 proc TEXThover {args} {
-	#grand_annoucement TEXThover $args $::cDim
+	grand_annoucement TEXThover $args $::cDim
 	variable x [lindex $args 0] y [lindex $args 1]
-	if { $y+5 >= [lindex $::cDim 3] } {grand_annoucement Nope ; return}
-	set ::tVar [.pane.main.canvas index TEXT @$x,$y]
-	puts $::tVar
+	if { $y+5 >= [lindex $::cDim 3] || $x >= [lindex $::cDim 2] } {grand_annoucement Nope ; return}
+	set ::tIndex [.pane.main.canvas index TEXT @$x,$y]
+	set i $::tIndex
+	
+	if {$::bCursor == {}} {
+		.pane.main.canvas insert TEXT $i $::Cursor
+		set ::bIndex $i
+		set ::bCursor Set
+		return
+	}
+	.pane.main.canvas imove TEXT $::bIndex $x $y
+	.pane.main.canvas dchars TEXT $::bIndex
+	.pane.main.canvas insert TEXT $i $::Cursor
+	
+	set ::bIndex $i
+	puts $::tIndex
 }
 proc create_scrolls {name} {
 	
