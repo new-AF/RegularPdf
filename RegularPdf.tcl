@@ -29,8 +29,36 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create]
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {}
 
+proc grand_annoucement {args} {
+	puts "*-*-*-*$args*-*-*-*-*"
+}
+proc get_args {List args} {
+	set r [list]
+	
+	foreach v $args {
+		set test [lsearch $List $v]
+		if {$test != -1} {
+			lappend r [lindex $List $test+1]
+		}
+		}
+	return $r
+	}
+proc change_font {args} {
+	if {$::cFont eq {}} {
+		set r [.pane.main.canvas itemconfig TEXT -font]
+		if {[lsearch $r {*-size*}] != -1} {grand_annoucement canvas font returned size! $r}
+		set ::cFont [font actual [lindex $r 3]]
+		set ::cSize [get_args $::cFont -size]
+	} else {
+		#grand_annoucement cSize $::cSize
+		incr ::cSize [lindex $args end]1
+	}
+	set ::cDim [.pane.main.canvas bbox TEXT]
+	.pane.main.canvas itemconfig TEXT -font "-size $::cSize"
+	return $::cSize
+}
 # **Stack** #
 button .left -text \ud83e\udc44 -font {-size 16}
 button .rght -text \ud83e\udc46 -font {-size 16}
@@ -189,6 +217,14 @@ proc pdfparse {objpath} { #object is ::oo::objxxx it is result of [self] from th
 	set ::pdff $str
 
 }
+set tVar {}
+proc TEXThover {args} {
+	#grand_annoucement TEXThover $args $::cDim
+	variable x [lindex $args 0] y [lindex $args 1]
+	if { $y+5 >= [lindex $::cDim 3] } {grand_annoucement Nope ; return}
+	set ::tVar [.pane.main.canvas index TEXT @$x,$y]
+	puts $::tVar
+}
 proc create_scrolls {name} {
 	
 	set main [winfo parent $name]
@@ -211,10 +247,10 @@ oo::class create SingleTab {
 	
 	constructor {tempcount {temptxt ""}} {
 
-		set txt $temptxt
+		set txt $temptxt ; incr tempcount
 		
 		set com "[self] clicked"
-		set b [button .tabs.canvas.button$tempcount -text [expr { $temptxt eq {} ? "Blank Document Text" : $temptxt }] -relief groove -cursor hand2 -command $com]
+		set b [button .pane.tabs.button$tempcount -text [expr { $temptxt eq {} ? "Blank Document #$tempcount" : $temptxt }] -relief groove -cursor hand2 -command $com]
 		if ![string equal $txt ""] {
 
 		set path [file join $::ePath $txt]
@@ -236,7 +272,7 @@ oo::class create SingleTab {
 	 	close fh
 	 }
 	 method clicked {} {
-	 	.main.canvas itemconfigure TEXT -text [string range $str 0 100]
+	 	.pane.main.canvas itemconfigure TEXT -text [string range $str 0 100]
 	 	pdfparse [self]
 	 }
 
@@ -251,13 +287,21 @@ oo::class create Tabs {
 	
 	
 	set t [labelframe .pane.tabs -text {Current Tabs} -relief ridge -bd 5]
+	
 	set tc [canvas $t.canvas]
 	set com "[self] create {}"
-	button $tc.add -text "\ud83d\uddcb Create New Document" -relief groove -command $com
+	
+	
+	button $tc.add -text "\ud83d\uddcb New Document" -relief groove -command $com
+	ttk::separator $tc.end -orient horizontal
+	
 	set fcount 0
 	set newcount 0
 	pack $tc -fill both
-	pack $tc.add -fill x -pady 0.05in
+	
+	
+	pack $tc.add -fill x -pady 0.05in -side right
+	pack $tc.end -fill x -pady 0.05in -side bottom
 	
 	#place .tabs -relx 0.66 -y 0.4in -relwidth 0.3 -relheight 1
 	
@@ -266,14 +310,18 @@ oo::class create Tabs {
 	
 	method create_main {} {
 		set m [labelframe .pane.main -relief groove -bd 5]
-		set mc [canvas $m.canvas -highlightbackground blue]
+		set tbar [frame .pane.main.toolbar -relief groove -bd 2]
+		set mc [canvas $m.canvas -highlightbackground green]
 		#place .main -relx 0.34 -y 0.4in -relwidth 0.3 -relheight 1
 		pack $mc -expand 1 -fill both
+		pack $tbar -expand 1 -fill both
 		set pad [$m.canvas cget -highlightthickness]
 		$mc create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
 		set com "[self] width_changed %W"
 		bind $mc <Configure> $com
+		$mc bind TEXT <Motion> "TEXThover %x %y %h"
 		create_scrolls $mc
+		my fill_canvas_toolbar
 		
 	}
 	
@@ -292,6 +340,14 @@ oo::class create Tabs {
 		$mc itemconfigure TEXT -width $new
 		$w config -scrollregion [$w bbox all]
 		
+	}
+	method fill_canvas_toolbar {} {
+		set tbar $m.toolbar
+		variable zoomin [button $tbar.zoomin -text "Enalrge Text" -relief groove -command "change_font +"]
+		variable zoomout [button $tbar.zoomout -text "Ensmall Text" -relief groove -command "change_font -"]
+		
+		pack $zoomin -side left -expand 0
+		pack $zoomout -side left -expand 0
 	}
 	
 }
@@ -579,4 +635,9 @@ proc ToolbarMenu {args}  {
 
 	
 } }
-ToolbarMenu put pack ; setmenu {}
+ToolbarMenu put pack ; setmenu {} 
+bind . <Visibility> {
+
+	set cDim [.pane.main.canvas bbox TEXT]
+	bind . <Visibility>
+}
