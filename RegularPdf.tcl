@@ -30,6 +30,56 @@ pack $z.${v}label -side top -pady 10 -padx 2cm
 }
 variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create]
 
+# **Stack** #
+dict append misc stackimage 
+proc StackThings {args} {
+	
+}
+
+proc aphoto {args} { ; # alpha photo
+	# ?create? ?zoom factorx factory? ?alpha newValue?
+	
+	set pho [lindex $args 0]
+	
+	if [string equal $pho create] { set pho  [image create photo [lindex $args 1]]
+		set args [lreplace $args 0 1] } else { set args [lreplace $args 0 0]  }
+	
+	set args2 [dict create]
+	
+	for {set v [llength $args]} {[incr v -1] >= 0} {}  {
+		switch [lindex $args $v] {
+			zoom {dict set args2 zoom [list $v [expr $v+2]] }
+			alpha {dict set args2 alpha [list $v [expr $v+1]]}
+		}
+	}
+	
+	foreach v [dict keys $args2] {
+		set value [dict get $args2 $v]
+		dict set args2 $v [lrange $args [lindex $value 0]+1 [lindex $value 1] ]
+		set args [lreplace $args {*}$value]
+	}
+	
+	$pho configure {*}$args
+	foreach v [dict keys $args2] {
+		set value [dict get $args2 $v]
+		switch $v {
+		zoom {pho copy pho {*}$value }
+		alpha { set x [$pho cget -width] ; lappend x [$pho cget -height] ; set x [lsort $x]
+			set y [lindex $x 1]
+			set x [lindex $x 0] ;
+			while {[incr x -1] >= 0} {
+				set tempy $y
+				while {[incr tempy -1]>=0} {$pho transparency set $x $tempy $value -alpha }
+				
+			} 
+		}
+	} 
+		
+	}
+	return $pho
+}
+####
+
 # Status Bar
 set s [label .0label -relief sunken -borderwidth 2 -text ""]
 
@@ -286,8 +336,8 @@ proc ToolbarButton {args} {
 frame .toolbar -relief flat -bd 5 ; pack [ttk::separator .toolbar.endseparator -orient horizontal] -side bottom -expand 1 -fill x -pady 1
 pack [button .toolbar.first -text {} -relief flat -state disabled] -side left -expand 0 -fill none
 place .toolbar -x 0 -y 0 -relwidth 1 -height 0.4in
-ToolbarButton .toolbar.stackleft -text "\ud83e\udc80 Stack Left"
-pack .toolbar.stackleft -side left
+ToolbarButton .toolbar.stack -text "\u2b94 Stack Things" -command StackThings
+pack .toolbar.stack -side left
 ####
 
 proc Adjustf {} {
@@ -491,7 +541,7 @@ proc ToolbarMenu {args}  {
 			}
 			
 			if [dict get $::misc switchmenu] { 
-				pack .toolbar.switchmenu -side left -before .toolbar.stackleft
+				pack .toolbar.switchmenu -side left -before .toolbar.stack
 				pack .toolbar.switchmenu_separator -side left -padx 1 -fill y -after .toolbar.switchmenu
 				dict set ::misc switchmenu 0  }
 		}
