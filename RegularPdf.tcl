@@ -6,7 +6,7 @@ package require Tk
 package require TclOO
 wm title . {RegularPDF}
 wm geometry . "700x400+[expr [winfo vrootwidth .]/2]+[expr [winfo vrootheight .]/2]"
-panedwindow .pane -showhandle 1 -sashwidth 10 -sashpad 20 -sashrelief raised -handlepad 50
+panedwindow .pane -showhandle 1 -sashwidth 10 -sashpad 20 -sashrelief raised -handlepad 0
 place .pane -relx 0 -rely 0.1 -relwidth 1 -relheight 1
 # About Dialog Window
 proc buttonhover {w} {
@@ -29,8 +29,24 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" Cursor "\u25a0" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" Cursor "\u25a0" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {} pi [expr asin(1)*2]
 
+proc deg_to_rad {input {opposite ""}} {
+	set unit [expr 2*$::pi/360]
+	
+	if {$opposite ne {}} {set unit [expr 1/$unit]}
+	
+	return [expr $input*$unit]
+}
+proc polar_to_rect {angle_deg_input {r 1} {dont_convert_to_rad false}} {
+	set input [expr {$dont_convert_to_rad ? $angle_deg_input : [deg_to_rad $angle_deg_input] }]
+	
+	set x [expr $r*cos($input)]
+	set y [expr $r*sin($input)]
+	
+	return [list $x $y]
+	
+}
 proc grand_annoucement {args} {
 	puts "*-*-*-*$args*-*-*-*-*"
 }
@@ -371,6 +387,7 @@ oo::class create Tabs {
 		set h [$c cget -height]
 		set pad 15
 		$c create rectangle $pad $pad [expr $w-$pad] [expr $h-$pad] -outline black -fill white
+		set x 0
 	}
 	
 }
