@@ -219,7 +219,7 @@ proc pdfparse {objpath} { #object is ::oo::objxxx it is result of [self] from th
 }
 
 proc TEXThover {args} {
-	grand_annoucement TEXThover $args $::cDim
+	#grand_annoucement TEXThover $args $::cDim
 	variable x [lindex $args 0] y [lindex $args 1]
 	if { $y+5 >= [lindex $::cDim 3] || $x >= [lindex $::cDim 2] } {grand_annoucement Nope ; return}
 	set ::tIndex [.pane.main.canvas index TEXT @$x,$y]
@@ -231,12 +231,12 @@ proc TEXThover {args} {
 		set ::bCursor Set
 		return
 	}
-	.pane.main.canvas imove TEXT $::bIndex $x $y
+	#.pane.main.canvas imove TEXT $::bIndex $x $y
 	.pane.main.canvas dchars TEXT $::bIndex
 	.pane.main.canvas insert TEXT $i $::Cursor
 	
 	set ::bIndex $i
-	puts $::tIndex
+	#puts $::tIndex
 }
 proc create_scrolls {name} {
 	
@@ -327,7 +327,7 @@ oo::class create Tabs {
 		set mc [canvas $m.canvas -highlightbackground green]
 		#place .main -relx 0.34 -y 0.4in -relwidth 0.3 -relheight 1
 		pack $mc -expand 1 -fill both
-		pack $tbar -expand 1 -fill both
+		pack $tbar -expand 0 -fill both -pady 5
 		set pad [$m.canvas cget -highlightthickness]
 		$mc create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
 		set com "[self] width_changed %W"
@@ -335,6 +335,7 @@ oo::class create Tabs {
 		$mc bind TEXT <Motion> "TEXThover %x %y %h"
 		create_scrolls $mc
 		my fill_canvas_toolbar
+		my draw_document
 		
 	}
 	
@@ -349,18 +350,27 @@ oo::class create Tabs {
 	method width_changed {w} {
 		set old [$mc itemcget TEXT -width] 
 		set new [winfo width $mc]
-		#puts "<configure event> old canas TEXT width $old new $new"
+		#puts "<configure event> old canvas TEXT width $old new $new"
 		$mc itemconfigure TEXT -width $new
 		$w config -scrollregion [$w bbox all]
 		
 	}
 	method fill_canvas_toolbar {} {
 		set tbar $m.toolbar
-		variable zoomin [button $tbar.zoomin -text "Enalrge Text" -relief groove -command "change_font +"]
-		variable zoomout [button $tbar.zoomout -text "Ensmall Text" -relief groove -command "change_font -"]
+		pack [button $tbar.enlarge -text "Enalrge Text" -relief groove -command "change_font +"] -side left -expand 0 -padx 1
+		pack [button $tbar.ensmall -text "Ensmall Text" -relief groove -command "change_font -"] -side left -expand 0 -padx 1
+		pack [button $tbar.zoomin -text "Zoom In" -relief groove -command {}] -side left -expand 0 -padx 1
+		pack [button $tbar.zoomout -text "Zoom Out" -relief groove -command {}] -side left -expand 0 -padx 1
 		
-		pack $zoomin -side left -expand 0
-		pack $zoomout -side left -expand 0
+	}
+	method draw_document {} {
+		#grand_annoucement [join [.pane.main.canvas config] \n]
+		#grand_annoucement [join [winfo reqheight .pane.main.canvas ] \n]
+		
+		set w [[set c .pane.main.canvas ] cget -width]
+		set h [$c cget -height]
+		set pad 15
+		$c create rectangle $pad $pad [expr $w-$pad] [expr $h-$pad] -outline black -fill white
 	}
 	
 }
