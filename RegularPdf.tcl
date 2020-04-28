@@ -47,8 +47,13 @@ proc polar_to_rect {angle_deg_input {r 1} {dont_convert_to_rad false}} {
 	return [list $x $y]
 	
 }
+
 proc grand_annoucement {args} {
-	puts "*-*-*-*$args*-*-*-*-*"
+	puts -nonewline {******* }
+	for {set i 0 ; set len [llength $args]} {$i < $len} {incr i 2} {
+		puts -nonewline "[join [lrange $args $i $i+1 ] |] "
+	}
+	puts {<<***}
 }
 proc get_args {List args} {
 	set r [list]
@@ -60,6 +65,75 @@ proc get_args {List args} {
 		}
 		}
 	return $r
+	}
+proc polygon {args} {
+		
+	set output [list]
+	
+	set count -1
+	foreach v $args {
+		incr count
+		set comma [string first , $v ]
+		if {$comma == -1} {
+				grand_annoucement Missing second point parameter in $v
+				return }
+			
+		set a [string range $v 0 $comma-1]
+		set b [string range $v $comma+1 end]
+		
+		if { $a eq {} || $b eq {} } {
+				grand_annoucement Empty [expr {$a eq {} ? First : Second}] point parameter in $v
+				return }
+		
+		
+		grand_annoucement A $a B $b Index  [string first # $a]
+		
+		set where [string first # $a]
+		set plus [expr {max([string first + $a],[string first - $a])}]
+		
+		if {$plus == {0}} {
+
+			set a [lindex [lindex $output end] 0]$a
+		} elseif { $where != {-1} } {
+			
+			grand_annoucement  $a $b Bounds $where $comma  $plus
+			
+			set comma [expr {$plus != -1 ? $plus-1 : $comma-1}]
+			set b1 [string range $a $where+1 $comma ] ; grand_annoucement B1 $b1
+			set b2 [lindex $output $b1 ]	; grand_annoucement B2 $b2
+			set b3 [lindex $b2 0]			; grand_annoucement B3 $b3
+			set b4 [string replace $a $where $comma $b3]		;	grand_annoucement B4 $b4
+			
+			set a $b4
+			
+			}
+			
+		set where [string first # $b]
+		set plus [expr {max([string first + $b],[string first - $b])}]
+		
+		if {$plus == {0}} {
+
+			set b [lindex [lindex $output end] 1]$b
+		} elseif { $where != {-1} } {
+			
+			#grand_annoucement  $a $b Bounds $where $comma  $plus
+			
+			set comma [expr {$plus != -1 ? $plus-1 : {end}}]
+			set b1 [string range $b $where+1 $comma ] ; #grand_annoucement B1 $b1
+			set b2 [lindex $output $b1 ]	; #grand_annoucement B2 $b2
+			set b3 [lindex $b2 1]			; #grand_annoucement B3 $b3
+			set b4 [string replace $b $where $comma $b3]		;	#grand_annoucement B4 $b4
+			
+			set b $b4
+			
+			}
+		
+			
+		grand_annoucement ToAppend [list $a $b]
+		lappend output [list $a $b]
+		grand_annoucement Final $output
+		} ; #END of foreach
+		
 	}
 proc change_font {args} {
 	if {$::cFont eq {}} {
@@ -386,8 +460,13 @@ oo::class create Tabs {
 		set w [[set c .pane.main.canvas ] cget -width]
 		set h [$c cget -height]
 		set pad 15
+		
 		$c create rectangle $pad $pad [expr $w-$pad] [expr $h-$pad] -outline black -fill white
-		set x 0
+		
+		variable xlen 50 x2 40 y1 50 ylen 100
+		#set x1 [expr $x2 [polar_to_rect ]]
+		set y2 [expr $y1+$ylen]
+		
 	}
 	
 }
