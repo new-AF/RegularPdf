@@ -109,7 +109,7 @@ proc polygon {args} {
 			if {$sign != {-1}} { set add [string range $v $sign+1 end] ; set FSIGN [string index $v $sign] }  
 			
 			grand_annoucement -no $number $add ### "$number $FSIGN $add" ### [expr "$number $FSIGN $add"]
-			lappend output [expr "{$number $FSIGN $add}"]
+			lappend output [expr "$number $FSIGN $add"]
 			
 			
 			
@@ -483,10 +483,11 @@ oo::class create Tabs {
 		set h [$c cget -height]
 		set pad 15
 		
-		#$c create rectangle $pad $pad [expr $w-$pad] [expr $h-$pad] -outline black -fill white
+		$c create polygon [parallel -dangle [expr 180-45] -h 250 -v 10 -orig 20,17] -outline black -fill black
+		;#$c create polygon [parallel -dangle [expr 90] -h 250 -v 10 -orig 20,17] -outline black -fill black
 		
-		$c create polygon [parallel -dangle [expr 180-20] -h 50 -v 50 -orig 10,10] -outline black -fill white
-		
+		$c create rectangle [polygon 250,18 +20,+402] -outline black -fill black
+		$c create rectangle [polygon 10,20 +250,+400] -outline black -fill white
 	}
 	
 }
