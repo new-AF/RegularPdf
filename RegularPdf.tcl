@@ -50,91 +50,113 @@ proc polar_to_rect {angle_deg_input {r 1} {dont_convert_to_rad false}} {
 
 proc grand_annoucement {args} {
 	puts -nonewline {******* }
+	if {{-no} ni $args} {
 	for {set i 0 ; set len [llength $args]} {$i < $len} {incr i 2} {
 		puts -nonewline "[join [lrange $args $i $i+1 ] |] "
-	}
+	}} else {puts -nonewline $args}
 	puts {<<***}
 }
 proc get_args {List args} {
 	set r [list]
 	
 	foreach v $args {
-		set test [lsearch $List $v]
-		if {$test != -1} {
-			lappend r [lindex $List $test+1]
+		set i [lsearch $List $v]
+		if {$i != -1} {
+			lappend r [lindex $List $i+1]
 		}
+	}
+	return $r
+}
+proc get_args2 {List args} {
+	set r [list]
+	set count 0
+	foreach v $List {
+		
+		set len [string length $v]
+		foreach newv $args { incr count ; if [string equal -length $len $v $newv] {  lappend r [lindex $List $count]  }  }
 		}
 	return $r
-	}
+}
+proc minus {args} {
+	set args2 [list]
+	foreach v $args { lappend args2 "{$v}" }
+	
+	set args2 [join $args -]
+	grand_annoucement $args2
+	grand_annoucement "[expr [subst $args2]]"
+}
 proc polygon {args} {
-		
+	grand_annoucement ARGS $args
 	set output [list]
 	
-	set count -1
-	foreach v $args {
-		incr count
-		set comma [string first , $v ]
-		if {$comma == -1} {
-				grand_annoucement Missing second point parameter in $v
-				return }
+	set count 0
+	foreach i  $args {
+		incr count ; set from 0
+		foreach v [split $i ,] {
+			puts >$v<
+			set t [list [string first + $v] [string first - $v]]
+			set sign [expr max([string first + $v], [string first - $v])]
+			set end [expr {$sign == {-1} ? [string length $v] :  $sign }]
 			
-		set a [string range $v 0 $comma-1]
-		set b [string range $v $comma+1 end]
-		
-		if { $a eq {} || $b eq {} } {
-				grand_annoucement Empty [expr {$a eq {} ? First : Second}] point parameter in $v
-				return }
-		
-		
-		grand_annoucement A $a B $b Index  [string first # $a]
-		
-		set where [string first # $a]
-		set plus [expr {max([string first + $a],[string first - $a])}]
-		
-		if {$plus == {0}} {
+			
+			set number {}
+			set hash [string first # $v]
+			if {$hash != {-1}} {
+			set number [lindex $output "[expr [string range $v $hash+1 $end-1]]" ] } elseif {$sign != {-1}} { set number [lindex $output "end-1" ] } else {set number $v}
 
-			set a [lindex [lindex $output end] 0]$a
-		} elseif { $where != {-1} } {
+			set FSIGN +
+			set add 0
+			if {$sign != {-1}} { set add [string range $v $sign+1 end] ; set FSIGN [string index $v $sign] }  
 			
-			grand_annoucement  $a $b Bounds $where $comma  $plus
+			grand_annoucement -no $number $add ### "$number $FSIGN $add" ### [expr "$number $FSIGN $add"]
+			lappend output [expr "{$number $FSIGN $add}"]
 			
-			set comma [expr {$plus != -1 ? $plus-1 : $comma-1}]
-			set b1 [string range $a $where+1 $comma ] ; grand_annoucement B1 $b1
-			set b2 [lindex $output $b1 ]	; grand_annoucement B2 $b2
-			set b3 [lindex $b2 0]			; grand_annoucement B3 $b3
-			set b4 [string replace $a $where $comma $b3]		;	grand_annoucement B4 $b4
 			
-			set a $b4
 			
-			}
 			
-		set where [string first # $b]
-		set plus [expr {max([string first + $b],[string first - $b])}]
-		
-		if {$plus == {0}} {
-
-			set b [lindex [lindex $output end] 1]$b
-		} elseif { $where != {-1} } {
-			
-			#grand_annoucement  $a $b Bounds $where $comma  $plus
-			
-			set comma [expr {$plus != -1 ? $plus-1 : {end}}]
-			set b1 [string range $b $where+1 $comma ] ; #grand_annoucement B1 $b1
-			set b2 [lindex $output $b1 ]	; #grand_annoucement B2 $b2
-			set b3 [lindex $b2 1]			; #grand_annoucement B3 $b3
-			set b4 [string replace $b $where $comma $b3]		;	#grand_annoucement B4 $b4
-			
-			set b $b4
-			
-			}
-		
-			
-		grand_annoucement ToAppend [list $a $b]
-		lappend output [list $a $b]
-		grand_annoucement Final $output
-		} ; #END of foreach
-		
+			set from 2;
+		}
+		puts ""
+	
 	}
+	return $output
+	}
+proc parallel {args} {
+
+	set dangle [get_args2 $args -dangle]
+	set h [get_args2 $args -horizontal]
+	set v [get_args2 $args -vertical]
+	set origin [get_args2 $args -origin]
+	
+	if {[string length $origin] < 2} {set origin 0,0}
+	
+	set origin [split $origin ,]
+	
+	set r [lrange $origin 0 end ]
+	lappend r {*}[polar_to_rect $dangle $v]
+	
+	lset r 2 [expr "[lindex $r 2]+[lindex $r 0]"]
+	lset r 3 [expr "[lindex $r 3]+[lindex $r 1]"]
+	
+	set rr  [lrange $r 0 end]
+	
+	lset rr 0 [expr "[lindex $rr 0]+$h"]
+	;#lset rr 1 [expr "[lindex $rr 1]+$h"]
+	lset rr 2 [expr "[lindex $rr 2]+$h"]
+	;#lset rr 3 [expr "[lindex $rr 3]+$h"]
+	
+	set upper [lrange $rr 0 1]
+	set lower [lrange $rr 2 3]
+	set rr "$lower $upper"
+	
+	
+	
+	grand_annoucement $r || $rr
+	
+	return "$r $rr"
+}
+#proc parallel {args} {parallelogram {*}$args}
+
 proc change_font {args} {
 	if {$::cFont eq {}} {
 		set r [.pane.main.canvas itemconfig TEXT -font]
@@ -461,11 +483,9 @@ oo::class create Tabs {
 		set h [$c cget -height]
 		set pad 15
 		
-		$c create rectangle $pad $pad [expr $w-$pad] [expr $h-$pad] -outline black -fill white
+		#$c create rectangle $pad $pad [expr $w-$pad] [expr $h-$pad] -outline black -fill white
 		
-		variable xlen 50 x2 40 y1 50 ylen 100
-		#set x1 [expr $x2 [polar_to_rect ]]
-		set y2 [expr $y1+$ylen]
+		$c create polygon [parallel -dangle [expr 180-20] -h 50 -v 50 -orig 10,10] -outline black -fill white
 		
 	}
 	
@@ -675,7 +695,12 @@ puts "**$v**"
 menu .mMenu -tearoff 0
 proc setmenu {{what .mMenu}} {. config -menu $what}
 proc debug {} {
-	puts yess
+	puts [polygon 123,456 +1,+1]
+	puts [polygon 45.123,23.435 +100,+0]
+	puts [polygon 45.123,23.435 +100,365]
+	puts [polygon 45.123,23.435 +100,#0+0]
+	puts [polygon 45.123,23.435 +100,#10+0]
+	puts [polygon 45.123,23.435 +100,#10]
 	
 }
 # Help->About Menu
