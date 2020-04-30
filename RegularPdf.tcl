@@ -7,7 +7,9 @@ package require TclOO
 wm title . {RegularPDF}
 wm geometry . "700x400+[expr [winfo vrootwidth .]/2]+[expr [winfo vrootheight .]/2]"
 panedwindow .pane -showhandle 1 -sashwidth 10 -sashpad 20 -sashrelief raised -handlepad 0
-place .pane -relx 0 -rely 0.1 -relwidth 1 -relheight 1
+place .pane -x 0 -y 0 -relwidth 1 -relheight 0.9
+
+ frame .resize -bd 5 -relief groove
 # About Dialog Window
 proc buttonhover {w} {
 	$w config -relief ridge
@@ -29,7 +31,9 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" Cursor "\u25a0" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {} pi [expr asin(1)*2]
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" Cursor "\u25a0" IconFontIncrease "\ud83d\uddda" IconFontDecrease "\ud83d\udddb" IconPlus "\uff0b" IconMinus "\u2212"  boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {} pi [expr asin(1)*2] paneY {} stackVar 0 
+
+variable IconZoomIn "$IconPlus \ud83d\udd0e" IconZoomOut "$IconMinus \ud83d\udd0e" IconSeethrough "\u239a"
 
 proc deg_to_rad {input {opposite ""}} {
 	set unit [expr 2*$::pi/360]
@@ -175,18 +179,16 @@ proc change_font {args} {
 button .left -text \ud83e\udc44 -font {-size 16}
 button .rght -text \ud83e\udc46 -font {-size 16}
 
-dict append misc  stack 1
-set stackVar {}
-proc StackThings {args} {
-	if [dict get $::misc stack] {
-		
-		#foreach v "$::a .pane.main .pane.tabs" {
-		#	bind $v <Enter> "StackThings move $v"
-		#}
-		
-	}
+
+proc stack_things {args} {
 	
-	place config .pane -rely 0.4
+	
+	if [set ::stackVar [expr !$::stackVar]] {
+		place configure .pane -y 100 
+		
+	} else {
+		place configure .pane -y $::paneY
+	}
 }
 
 proc aphoto {args} { ; # alpha photo
@@ -350,6 +352,9 @@ proc TEXThover {args} {
 	set ::bIndex $i
 	#puts $::tIndex
 }
+proc opaque_canvas {W} {
+	.pane.main.canvas itemconfig BOX -fill [lindex "white [.pane.main.canvas cget -bg]" [Reliefbutton $W ison]]
+}
 proc create_scrolls {name} {
 	
 	set main [winfo parent $name]
@@ -366,6 +371,46 @@ proc create_scrolls {name} {
 		#return $main
 	
 	}
+proc put_scrolls {args} {
+	
+	set control [get_args2 $args -control]
+	set put [get_args2 $args -put]
+	set xargs [get_args2 $args -xargs]
+	set yargs [get_args2 $args -yargs]
+	set Controlargs [get_args2 $args -Controlargs]
+	set xplace [get_args2 $args -xplace]
+	set yplace [get_args2 $args -yplace]
+	
+	scrollbar $put.scrollx -orient horiz -relief sunken -command "$control xview" {*}$xargs
+	scrollbar $put.scrolly -orient vert -relief sunken -command "$control yview" {*}$yargs
+	$control config -xscrollcommand "$put.scrollx set" -yscrollcommand "$put.scrolly set" {*}$Controlargs
+	eval {*}$xplace
+	eval {*}$yplace
+	
+}
+proc separator {name {type ""} args} {
+	set config {-state disabled -text {} -relief flat}
+	switch -glob $type {
+		
+		button { button $name {*}$config }
+		horiz* { ttk:separator $name -orient horizontal } 
+		vert* { ttk:separator $name -orient vertical }
+		default { label $name {*}$config }
+	}
+	set c 0 
+	switch -glob [lindex $args 0] {
+		-pack {incr c ; pack $name -expand 0 -padx 1 -pady 1 -side left}
+		-* { incr c ; eval [lrange $args c-1 c] }
+	}
+
+}
+set tcount 0
+set tvar [dict create]
+proc create_text {x y} {
+	.pane.main.canvas create text $x $y -tag TEXT$::tcount -text TEXT$::tcount -anchor nw
+	incr ::tcount
+	puts Called
+}
 oo::class create SingleTab { 
 	
 	variable txt str path fh b 
@@ -422,10 +467,10 @@ oo::class create Tabs {
 	
 	set fcount 0
 	set newcount 0
-	pack $tc -fill both
+	pack $tc -fill both -side top
 	
 	
-	pack $tc.add -fill x -pady 0.05in -side right
+	pack $tc.add -fill x -pady 0.05in -side top
 	pack $tc.end -fill x -pady 0.05in -side bottom
 	
 	#place .tabs -relx 0.66 -y 0.4in -relwidth 0.3 -relheight 1
@@ -438,14 +483,16 @@ oo::class create Tabs {
 		set tbar [frame .pane.main.toolbar -relief groove -bd 2]
 		set mc [canvas $m.canvas -highlightbackground green]
 		#place .main -relx 0.34 -y 0.4in -relwidth 0.3 -relheight 1
-		pack $mc -expand 1 -fill both
-		pack $tbar -expand 0 -fill both -pady 5
+		
+		
 		set pad [$m.canvas cget -highlightthickness]
 		$mc create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
 		set com "[self] width_changed %W"
 		bind $mc <Configure> $com
 		$mc bind TEXT <Motion> "TEXThover %x %y %h"
-		create_scrolls $mc
+		put_scrolls -control $mc -put .pane.main -xplace {pack $put.scrollx -side bottom -fill x } -yplace {pack $put.scrolly -side right -fill y }
+		pack $tbar -side top -expand 0 -fill x -pady 5
+		pack $mc -expand 1 -fill both -side bottom
 		my fill_canvas_toolbar
 		my draw_document
 		
@@ -468,11 +515,27 @@ oo::class create Tabs {
 		
 	}
 	method fill_canvas_toolbar {} {
+		
+		
 		set tbar $m.toolbar
-		pack [button $tbar.enlarge -text "Enalrge Text" -relief groove -command "change_font +"] -side left -expand 0 -padx 1
-		pack [button $tbar.ensmall -text "Ensmall Text" -relief groove -command "change_font -"] -side left -expand 0 -padx 1
-		pack [button $tbar.zoomin -text "Zoom In" -relief groove -command {}] -side left -expand 0 -padx 1
-		pack [button $tbar.zoomout -text "Zoom Out" -relief groove -command {}] -side left -expand 0 -padx 1
+		pack [Reliefbutton $tbar.seethrough -text "$::IconSeethrough see through canvas" -relief groove] -side left -expand 0 -padx 1
+		bind_Reliefbutton $tbar.seethrough opaque_canvas
+		
+		separator $tbar.separator1 label -pack
+		
+		pack [button $tbar.enlarge -text "$::IconFontIncrease Enalrge Text" -relief groove -command "change_font +"] -side left -expand 0 -padx 1
+		pack [button $tbar.ensmall -text "$::IconFontDecrease Ensmall Text" -relief groove -command "change_font -"] -side left -expand 0 -padx 1
+		
+		separator $tbar.separator2 label -pack
+		
+		pack [button $tbar.zoomin -text "$::IconZoomIn Zoom In" -relief groove -command {.pane.main.canvas scale all [expr [.pane.main.canvas cget -width]/2] [expr [.pane.main.canvas cget -height]/2] 2 2 }] -side left -expand 0 -padx 1
+		pack [button $tbar.zoomout -text "$::IconZoomOut Zoom Out" -relief groove -command {.pane.main.canvas scale all [expr [.pane.main.canvas cget -width]/2] [expr [.pane.main.canvas cget -height]/2] .5 .5 }] -side left -expand 0 -padx 1
+		
+		separator $tbar.separator3 label -pack
+		
+		.pane.main.canvas bind BOX <Double-ButtonPress> { create_text %x %y }
+		bind .pane.main.canvas <ButtonPress> {.pane.main.canvas scan mark %x %y}
+		bind .pane.main.canvas <B1-Motion> {.pane.main.canvas scan dragto %x %y 2}
 		
 	}
 	method draw_document {} {
@@ -487,7 +550,7 @@ oo::class create Tabs {
 		;#$c create polygon [parallel -dangle [expr 90] -h 250 -v 10 -orig 20,17] -outline black -fill black
 		
 		$c create rectangle [polygon 250,18 +20,+402] -outline black -fill black
-		$c create rectangle [polygon 10,20 +250,+400] -outline black -fill white
+		$c create rectangle [polygon 10,20 +250,+400] -outline black -fill white -tag BOX
 	}
 	
 }
@@ -509,7 +572,7 @@ set dd [ttk::separator $a.1separator -orient horizontal]
 
 # List box
 set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor [. cget -bg] -cursor hand2 -activestyle none -selectmode single -listvar eVar]
-set f [listbox $a.1list -relief flat -highlightthickness 2 -highlightcolor red -cursor hand2 -activestyle dotbox -bg [. cget -bg] -listvar fVar]
+set f [listbox $a.1list -relief flat -highlightthickness 2 -highlightcolor red -cursor hand2 -activestyle dotbox -bg [. cget -bg] -listvar fVar -justify center]
 
 proc distribute_scroll {things args} { foreach v $things { $v {*}$args } }
 variable g [scrollbar $a.0scroll -orient vertical -command "distribute_scroll {$e $f} yview"] h [scrollbar $a.1scroll -orient horizontal -command "$e xview"]
@@ -528,7 +591,7 @@ pack $b $c $j  -side right -anchor ne -padx 5
 foreach v {$b $c $j} {[subst $v] config -relief groove}
 pack $h  -side bottom  -fill x
 pack $dd -fill x
-pack $f -side left -expand 1 -fill y
+pack $f -side left -expand 0 -fill y
 pack $e -side left -expand 1 -fill both
 pack $g -side left -fill y
 #pack config $j -padx 0
@@ -546,7 +609,7 @@ proc ToolbarButton {args} {
 frame .toolbar -relief flat -bd 5 ; pack [ttk::separator .toolbar.endseparator -orient horizontal] -side bottom -expand 1 -fill x -pady 1
 pack [button .toolbar.first -text {} -relief flat -state disabled] -side left -expand 0 -fill none
 place .toolbar -x 0 -y 0 -relwidth 1 -height 0.4in
-ToolbarButton .toolbar.stack -text "\u2b94 Stack Things" -command StackThings
+ToolbarButton .toolbar.stack -text "\u2b94 Stack Things" -command stack_things
 pack .toolbar.stack -side left
 ####
 
@@ -784,5 +847,7 @@ ToolbarMenu put pack ; setmenu {}
 bind . <Visibility> {
 
 	set cDim [.pane.main.canvas bbox TEXT]
+	set ::paneY [expr max([winfo reqheight .toolbar],[winfo height .toolbar])]
+	place configure .pane -y $::paneY
 	bind . <Visibility>
 }
