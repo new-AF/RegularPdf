@@ -321,6 +321,14 @@ proc pdf {com args} {
 	return $new
 }
 
+variable pdf2 {args} {
+	namespace eval whitespace { null \x0 	htab \x9 	nextline \xa	nextpage \xc	cr \xd		space \x20 }
+	namespace eval delimiter {leftparan \x28 rightparan \x29 leftangle	\x3c rightangle	\x3e lefsquare	\x5b rightsquare \x5d leftcurly	\x7b rightcurly \x7d rightslash	\x2f percent \x25}
+	set i [split $:pdff {}]
+	lsearch $i 
+	
+}
+
 proc pdfparse {objpath} { #object is ::oo::objxxx it is result of [self] from the calling Object. 
 	
 	set str [subst $[subst $objpath]::str] ; puts "**pdf file Legnth: [string length $str] Bytes**"
@@ -450,6 +458,7 @@ oo::class create SingleTab {
 oo::class create Tabs { 
 	
 	variable fcount newcount lobj sobj m mc 		t tc
+	set cm {}
 	
 	constructor {} {
 	
@@ -488,13 +497,16 @@ oo::class create Tabs {
 		set pad [$m.canvas cget -highlightthickness]
 		$mc create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
 		set com "[self] width_changed %W"
-		bind $mc <Configure> $com
+		;#bind $mc <Configure> $com
+		bind $m <Configure> "[self] frame_changed %W"
 		$mc bind TEXT <Motion> "TEXThover %x %y %h"
 		put_scrolls -control $mc -put .pane.main -xplace {pack $put.scrollx -side bottom -fill x } -yplace {pack $put.scrolly -side right -fill y }
 		pack $tbar -side top -expand 0 -fill x -pady 5
 		pack $mc -expand 1 -fill both -side bottom
 		my fill_canvas_toolbar
 		my draw_document
+		my make_ruler
+		my bind_pointer
 		
 	}
 	
@@ -505,6 +517,9 @@ oo::class create Tabs {
 		pack [$new get] -fill x -pady 0.05in
 		switch $txt {} {incr newcount} default {incr fcount}
 		
+	}
+	method frame_changed {widget} {
+		$widget.canvas configure -scrollregion  [$widget.canvas bbox all]
 	}
 	method width_changed {w} {
 		set old [$mc itemcget TEXT -width] 
@@ -518,7 +533,7 @@ oo::class create Tabs {
 		
 		
 		set tbar $m.toolbar
-		pack [Reliefbutton $tbar.seethrough -text "$::IconSeethrough see through canvas" -relief groove] -side left -expand 0 -padx 1
+		pack [Reliefbutton $tbar.seethrough -text "$::IconSeethrough Darken Document" -relief groove] -side left -expand 0 -padx 1
 		bind_Reliefbutton $tbar.seethrough opaque_canvas
 		
 		separator $tbar.separator1 label -pack
@@ -533,10 +548,12 @@ oo::class create Tabs {
 		
 		separator $tbar.separator3 label -pack
 		
-		.pane.main.canvas bind BOX <Double-ButtonPress> { create_text %x %y }
+		.pane.main.canvas bind BOX <Double-ButtonPress> { create_text [%W canvasx %x] [%W canvasy %y] } 
+		;#.pane.main.canvas bind BOX <Double-ButtonPress>  "[self] create_line [%W canvasx %x] [%W canvasy %y] "
+		;#.pane.main.canvas bind BOX <Motion> {puts ">>>>> %x %y [%W canvasx %x]"}
 		bind .pane.main.canvas <ButtonPress> {.pane.main.canvas scan mark %x %y}
-		bind .pane.main.canvas <B1-Motion> {.pane.main.canvas scan dragto %x %y 2}
-		
+		bind .pane.main.canvas <B1-Motion> {.pane.main.canvas scan dragto %x %y 1}
+		bind .pane.main.canvas <MouseWheel> "[self] mouse_wheel %x %y %D"
 	}
 	method draw_document {} {
 		#grand_annoucement [join [.pane.main.canvas config] \n]
@@ -551,6 +568,52 @@ oo::class create Tabs {
 		
 		$c create rectangle [polygon 250,18 +20,+402] -outline black -fill black
 		$c create rectangle [polygon 10,20 +250,+400] -outline black -fill white -tag BOX
+	}
+	method mouse_wheel {x y d} {
+		puts "MouseWheel $x $y $d"
+		set s [string index $d 0]
+		if {$s eq {+}} {.pane.main.canvas scale all $x $y 2 2 ; puts ++++ } else {.pane.main.canvas scale all $x $y 0.5 0.5 ; puts --------}
+		
+	}
+	method create_line {x y} {
+		
+	}
+	method make_ruler {} {
+		set c .pane.main.canvas
+		puts **********[$c bbox BOX ]
+		puts **********[$c bbox BOX ]
+		set w [$c cget -width]
+		
+		set ruler [$c create line [polygon 0,10 +$w,+0] -fill green]
+		;#set tick [$c crate rectangle [polygon]]
+		$c create line 0 0 1cm 0 -fill white -tag T
+		set cm [lindex [$c bbox T] 2]
+		set tenth [expr $cm / 10]
+		
+		for {set i 20 ; set howmany 0} {$i < $w} {incr i $cm ; incr howmany} {
+			set end [expr $i+$cm]
+			for {set j $i ; set tick_pad 0} {$j <= $end} {incr j $tenth; incr tick_pad} {
+				$c create line $j 10 $j [expr 20+$tick_pad] -fill black -tag TICK$tick_pad
+				
+			}
+			$c create text $i 35 -text $howmany -anchor center
+		}
+		$c create line [polygon 0,0 0,10] -fill white -tag TICKX
+		for {set i 10 ; set howmany 0} {$i < $w} {incr i $cm ; incr howmany} {
+			set end [expr $i+$cm]
+			for {set j $i ; set tick_pad 0} {$j <= $end} {incr j $tenth; incr tick_pad} {
+				$c create line 0 $j [expr 20+$tick_pad] $j -fill gray -tag TICK$tick_pad
+				
+			}
+			$c create text 35 $i -text $howmany -anchor center
+		}
+		$c create line [polygon 0,0 10,0] -fill white -tag TICKY
+	
+	}
+	method bind_pointer {} {
+		set c .pane.main.canvas
+		bind $c <Motion> {%W moveto TICKX [%W canvasx %x] 10}
+		
 	}
 	
 }
