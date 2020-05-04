@@ -19,7 +19,21 @@ proc buttonleave {w} {
 	$w config -relief flat
 	
 }
-
+proc operation {operator args} {
+	
+	set target [lindex $args end]
+	set args [lreplace $args end end]
+	set count 0
+	foreach v $args { 
+	lset args $count [expr $v $operator $target]
+	incr count}
+	return $args
+}
+proc plus {args} { if [llength $args]==1 {set args [lindex $args 0]} ; return [operation + {*}$args] }
+proc minus {args} { if [llength $args]==1 {set args [lindex $args 0]}  ; return [operation - {*}$args] }
+proc product {args} { if [llength $args]==1 {set args [lindex $args 0]}  ; return [operation * {*}$args] }
+proc divide {args} { if [llength $args]==1 {set args [lindex $args 0]}  ; return [operation / {*}$args] }
+proc raise {args} { if [llength $args]==1 {set args [lindex $args 0]}  ; return [operation ** {*}$args] }
 toplevel .1top
 wm withdraw .1top
 wm title .1top About
@@ -42,11 +56,12 @@ proc deg_to_rad {input {opposite ""}} {
 	
 	return [expr $input*$unit]
 }
-proc polar_to_rect {angle_deg_input {r 1} {dont_convert_to_rad false}} {
-	set input [expr {$dont_convert_to_rad ? $angle_deg_input : [deg_to_rad $angle_deg_input] }]
+proc polar_to_rect {angle_deg_input {r 1} {origin {0 0}} {dontConvertToRad false}} {
 	
-	set x [expr $r*cos($input)]
-	set y [expr $r*sin($input)]
+	set input [expr {$dontConvertToRad ? $angle_deg_input : [deg_to_rad $angle_deg_input] }]
+	
+	set x [expr $r*cos($input)+[lindex $origin 0]]
+	set y [expr $r*sin($input)+[lindex $origin 1]]
 	
 	return [list $x $y]
 	
@@ -81,14 +96,74 @@ proc get_args2 {List args} {
 		}
 	return $r
 }
-proc minus {args} {
-	set args2 [list]
-	foreach v $args { lappend args2 "{$v}" }
+proc new_args {List args} {
 	
-	set args2 [join $args -]
-	grand_annoucement $args2
-	grand_annoucement "[expr [subst $args2]]"
+	set toreturn [list]
+;#puts "List->$List<-
+;#ARGS->$args<-"
+	if {[lindex $List end-1] eq {-XDefaults}} {set def [lindex $List end] ; set List [lreplace $List end end] ; set List [lreplace $List end end] } else {set def ""}
+;#	puts ""
+;#	puts "List->$List<-
+;#ARGS->$args<-
+;#DEF->$def<-"
+	set count 0
+	foreach v $args {
+		set found [lsearch $List $v ]
+		if {$found != {-1}} { lappend toreturn [lindex $List $found+1]  } elseif {$def ne ""} { lappend toreturn [lindex $def $count] }
+	
+		incr count
+	}
+	
+;#puts "
+;#TORETURN->$toreturn<-"
+	return $toreturn
 }
+proc new_args_count {List args} {
+	
+	set toreturn [list]
+	;#puts "$List // $args"
+	if {[lindex $List end-1] eq {-XDefaults}} {set def [lindex $List end] ; set List [lreplace $List end end] ; set List [lreplace $List end end] } else {set def ""}
+	;#puts "$List // $args // $def"
+	set count 0
+	foreach v $args {
+		set found [lsearch $List $v ]
+		if {$found != {-1}} { lappend toreturn [lindex $List $found+1] [plus $found 1]  } elseif {$def ne ""} { lappend toreturn [lindex $def $count] $found }
+	
+		incr count
+	}
+	
+	return $toreturn
+}
+
+proc polar_to_rect2 {args} {
+	
+;#angle_deg_input {r 1} {origin {0 0}} {dontConvertToRad false}
+	
+	lappend args -XDefaults {0 1 {0 0} false}
+	
+	set r [new_args $args -angle -radius -shift -dontConvertToRad  ]
+;#grand_annoucement $r
+	
+	lassign $r angle radius shift dontConvertToRad ; set r $radius
+	
+;#puts "ANGLE>$angle<
+;#RADIUS>$radius<
+;#SHIFT>$shift<
+;#DONT>$dontConvertToRad<
+;#"
+	
+	lassign $shift xshift yshift
+;#grand_annoucement $xshift $yshift
+	
+	set input [expr {$dontConvertToRad ? $angle : [deg_to_rad $angle] }]
+	
+	set x [expr $r*cos($input)+$xshift]
+	set y [expr $r*sin($input)+$yshift] ; set y -$y
+	
+	return [list $x $y]
+	
+}
+
 proc polygon {args} {
 	grand_annoucement ARGS $args
 	set output [list]
@@ -160,7 +235,6 @@ proc parallel {args} {
 	return "$r $rr"
 }
 #proc parallel {args} {parallelogram {*}$args}
-
 proc change_font {args} {
 	if {$::cFont eq {}} {
 		set r [.pane.main.canvas itemconfig TEXT -font]
@@ -455,6 +529,27 @@ oo::class create SingleTab {
 	 }
 
 }
+proc triangle {args} {
+	set args [concat $args -XDefaults 60 60 50 0]
+	set temp [new_args $args -langle -rangle -radius -flip]
+;#grand_annoucement $temp
+	lassign $temp langle rangle radius flip tags
+	
+	set langle [minus 180 $langle]
+;#radius
+	
+	lassign [polar_to_rect2 -angle $langle -radius $radius -shift {0 0}] a b
+	lassign [polar_to_rect2 -angle $rangle -radius $radius -shift {0 0}] x y
+	
+	set adj2 [expr 2*cos([deg_to_rad $rangle])*[expr sqrt($x**2+$y**2)]]
+	
+	set c .pane.main.canvas
+	;#$c create line   -fill red -width 5 -tag TRIANGLE
+	;#$c create line 0 0 $x $y $adj2 0 [plus $adj2 $a] $b -fill blue -width 5 -tag TRIANGLE
+	$c create line 0 0 $adj2 0 $x $y 0 0 -fill blue -width 5 -tag TRIANGLE
+	;#B $c create line 0 0 $adj2 0 -fill blue -width 5 -tag TRIANGLE
+	
+}
 oo::class create Tabs { 
 	
 	variable fcount newcount lobj sobj m mc 		t tc
@@ -498,7 +593,7 @@ oo::class create Tabs {
 		$mc create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
 		set com "[self] width_changed %W"
 		;#bind $mc <Configure> $com
-		bind $m <Configure> "[self] frame_changed %W"
+		bind $m <Configure> {%W.canvas configure -scrollregion  [%W.canvas bbox all]}
 		$mc bind TEXT <Motion> "TEXThover %x %y %h"
 		put_scrolls -control $mc -put .pane.main -xplace {pack $put.scrollx -side bottom -fill x } -yplace {pack $put.scrolly -side right -fill y }
 		pack $tbar -side top -expand 0 -fill x -pady 5
@@ -507,7 +602,7 @@ oo::class create Tabs {
 		my draw_document
 		my make_ruler
 		my bind_pointer
-		
+		my triangle_tick
 	}
 	
 	method create {txt} {
@@ -518,9 +613,7 @@ oo::class create Tabs {
 		switch $txt {} {incr newcount} default {incr fcount}
 		
 	}
-	method frame_changed {widget} {
-		$widget.canvas configure -scrollregion  [$widget.canvas bbox all]
-	}
+	
 	method width_changed {w} {
 		set old [$mc itemcget TEXT -width] 
 		set new [winfo width $mc]
@@ -563,11 +656,16 @@ oo::class create Tabs {
 		set h [$c cget -height]
 		set pad 15
 		
-		$c create polygon [parallel -dangle [expr 180-45] -h 250 -v 10 -orig 20,17] -outline black -fill black
+		$c create polygon [parallel -dangle [expr 180-45] -h 250 -v 10 -orig 20,17] -outline black -fill black -tag BOX
 		;#$c create polygon [parallel -dangle [expr 90] -h 250 -v 10 -orig 20,17] -outline black -fill black
 		
-		$c create rectangle [polygon 250,18 +20,+402] -outline black -fill black
+		$c create rectangle [polygon 250,18 +20,+402] -outline black -fill black -tag BOX
 		$c create rectangle [polygon 10,20 +250,+400] -outline black -fill white -tag BOX
+		 
+		bind $m <Configure> {+
+			set w [winfo width %W]
+			%W.canvas moveto BOX [expr ($w-[lindex [%W.canvas bbox BOX] 2])/2+40 ] 40}
+			
 	}
 	method mouse_wheel {x y d} {
 		puts "MouseWheel $x $y $d"
@@ -580,35 +678,45 @@ oo::class create Tabs {
 	}
 	method make_ruler {} {
 		set c .pane.main.canvas
-		puts **********[$c bbox BOX ]
-		puts **********[$c bbox BOX ]
-		set w [$c cget -width]
+		;#puts **********[$c bbox BOX ]
+		;#puts **********[$c cget -height ]
 		
-		set ruler [$c create line [polygon 0,10 +$w,+0] -fill green]
-		;#set tick [$c crate rectangle [polygon]]
-		$c create line 0 0 1cm 0 -fill white -tag T
-		set cm [lindex [$c bbox T] 2]
-		set tenth [expr $cm / 10]
+		variable w [$c cget -width]  h [$c cget -height]  pad [$c cget -[join "high light thickness" ""]]
 		
-		for {set i 20 ; set howmany 0} {$i < $w} {incr i $cm ; incr howmany} {
+		variable x $pad  y $pad
+		
+		variable tickLength [expr ($pad+1)*2]
+		
+		$c create line 0 0 $w 0 -fill blue -width $pad -tag RULER_XLINE
+		$c create line 0 0 0 $h -fill blue -width $pad -tag RULER_YLINE
+		
+		set testcm [$c create line 0 0 1cm 0 -fill ""]
+		
+		variable cm [lindex [$c bbox $testcm] 2]  tenth [expr $cm/10]
+		set max_tickLength [expr $tickLength+$tenth+5]
+		
+		for {set i 0 ; set count 0} {$i < $w} {incr i $cm ; incr count} {
 			set end [expr $i+$cm]
-			for {set j $i ; set tick_pad 0} {$j <= $end} {incr j $tenth; incr tick_pad} {
-				$c create line $j 10 $j [expr 20+$tick_pad] -fill black -tag TICK$tick_pad
+			for {set j $i ; set tick 0} {$j <= $end} {incr j $tenth; incr tick} {
+				$c create line $j $pad $j [expr $tickLength+$tick] -fill black -tag TICK$tick
 				
 			}
-			$c create text $i 35 -text $howmany -anchor center
+			$c create text $i $max_tickLength -text $count -anchor n
 		}
-		$c create line [polygon 0,0 0,10] -fill white -tag TICKX
-		for {set i 10 ; set howmany 0} {$i < $w} {incr i $cm ; incr howmany} {
+		
+		
+		for {set i 0 ; set count 0} {$i < $w} {incr i $cm ; incr count} {
 			set end [expr $i+$cm]
-			for {set j $i ; set tick_pad 0} {$j <= $end} {incr j $tenth; incr tick_pad} {
-				$c create line 0 $j [expr 20+$tick_pad] $j -fill gray -tag TICK$tick_pad
+			for {set j $i ; set tick 0} {$j <= $end} {incr j $tenth; incr tick} {
+				$c create line 0 $j [expr $tickLength+$tick] $j -fill black -tag TICK$tick
 				
 			}
-			$c create text 35 $i -text $howmany -anchor center
+			$c create text $max_tickLength $i -text $count -anchor w
 		}
-		$c create line [polygon 0,0 10,0] -fill white -tag TICKY
 	
+	}
+	method triangle_tick {} {
+		triangle -langle 60 -rangle 60 -radius 50
 	}
 	method bind_pointer {} {
 		set c .pane.main.canvas
