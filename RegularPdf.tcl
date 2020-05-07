@@ -45,7 +45,7 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" BlockCursor "\u25a0" IconFontIncrease "\ud83d\uddda" IconFontDecrease "\ud83d\udddb" IconPlus "\uff0b" IconMinus "\u2212" IconZoom "\ud83d\udd0e" IconSeethrough "\u239a" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {} pi [expr asin(1)*2] paneY {} stackVar 0 lVar {} lId {} lPos {} lY {}
+variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" BlockCursor "\u25a0" IconFontIncrease "\ud83d\uddda" IconFontDecrease "\ud83d\udddb" IconPlus "\uff0b" IconMinus "\u2212" IconZoom "\ud83d\udd0e" IconSeethrough "\u239a" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {} pi [expr asin(1)*2] paneY {} stackVar 0 lVar {} lId {} lPos {} lY {} tVar {} IconEnd "\ud83d\udccc"
 
 set Cursor $BlockCursor
 
@@ -414,7 +414,7 @@ proc pdfparse {objpath} { #object is ::oo::objxxx it is result of [self] from th
 
 }
 
-proc TEXThover {args} {
+proc TEXThover0 {args} {
 	#grand_annoucement TEXThover $args $::cDim
 	variable x [lindex $args 0] y [lindex $args 1]
 	if { $y+5 >= [lindex $::cDim 3] || $x >= [lindex $::cDim 2] } {grand_annoucement Nope ; return}
@@ -430,6 +430,32 @@ proc TEXThover {args} {
 	#.pane.main.canvas imove TEXT $::bIndex $x $y
 	.pane.main.canvas dchars TEXT $::bIndex
 	.pane.main.canvas insert TEXT $i $::Cursor
+	
+	set ::bIndex $i
+	#puts $::tIndex
+}
+proc TEXThover {c x y h} {
+	
+	set now [$c type current]
+	set info [$c bbox current] ; if { $info eq {} } { return } 
+	lassign $info bx by bw bh 
+	grand_annoucement $x $y <> $info 
+	if { $y+5 >= $bh || $x >= $bw } {grand_annoucement Nope ; 
+
+	if {$::bCursor ne {}} { $c dchars current $::bIndex } ; return}
+
+	set ::tIndex [$c index current @$x,$y] 
+	set i $::tIndex
+	
+	if {$::bCursor eq {}} {
+		$c insert current $i $::Cursor
+		set ::bIndex $i
+		set ::bCursor Set
+		return
+	}
+	#.pane.main.canvas imove TEXT $::bIndex $x $y
+	$c dchars current $::bIndex
+	$c insert current $i $::Cursor
 	
 	set ::bIndex $i
 	#puts $::tIndex
@@ -486,13 +512,54 @@ proc separator {name {type ""} args} {
 	}
 
 }
-set tcount 0
-set tvar [dict create]
-proc create_text {x y} {
-	.pane.main.canvas create text $x $y -tag TEXT$::tcount -text TEXT$::tcount -anchor nw
-	incr ::tcount
-	puts Called
+set bbVar 0
+proc create_text {c x y k a} {
+	set g [$c index BLOCK_CURSOR insert]
+	switch $k {
+		
+		BackSpace {
+			if {$g} {
+			$c dchars BLOCK_CURSOR [expr $g - 1]
+			incr ::bbVar -1
+			}
+		}
+		Left {
+			if {$g} {
+			grand_annoucement [expr $g - 1]
+			
+			$c icursor BLOCK_CURSOR [incr ::bbVar -1]
+			$c dchars BLOCK_CURSOR [expr $::bbVar + 1]
+			$c insert BLOCK_CURSOR insert $::Cursor
+			
+			}
+		}
+		Return {
+			set id [$c find withtag BLOCK_CURSOR]
+			$c dchars BLOCK_CURSOR $::bbVar
+			$c icursor BLOCK_CURSOR end
+			$c insert BLOCK_CURSOR insert $::IconEnd
+			;#$c rchars BLOCK_CURSOR $::bbVar [expr $::bbVar + 1] $::IconEnd
+			$c itemconfig $id -tag TEXT
+			$c create text $x $y -text $::Cursor -anchor w  -tag BLOCK_CURSOR
+		}
+		default {
+			$c insert BLOCK_CURSOR insert $a
+			incr ::bbVar
+			
+		}
+	}
+	
+	return
+	set r [ $c find overlapping $x $y [expr $x + [font measure TkDefaultFont -displayof $c $::Cursor] ] $y ]
+	grand_annoucement $r
+	foreach v $r { if { [$c type $v] eq {text} } { set r $v ; break } }
+	grand_annoucement $r
+	if { $r eq {} } {
+	$c create text $x $y -tag TEXT -anchor w -text $k
+	}
+	
 }
+
 oo::class create SingleTab { 
 	
 	variable txt str path fh b 
@@ -581,20 +648,22 @@ proc triangle {args} {
 proc blink_line_cursor {{on 0}} {
 	if $on {} else {}
 }
-proc hoverline {c {_x ""} {_y ""}} {
+proc hoverline {c {x ""} {y ""}} {
 	
-	if [string length $_x]==0 {
+	if [string length $x]==0 {
 		set f [font metrics TkDefaultFont] ; set s [lsearch -glob $f -linespace] ; set s [lindex $f $s+1]
 		incr s 5
 		set ::lVar $s ; lassign [$c bbox B] bx by bw bh ; #grand_annoucement ABA [$c bbox B]
 		incr bx 7
 		;#{grand_annoucement %W %x %y [%W canvasx %x] [%W canvasy %y] [%W bbox B]}
 		set many [expr {$bh} / $s] ; set count -1 ; set i $by ; incr i $s ; while {[incr count] < $many} { grand_annoucement [$c create line $bx $i $bw $i -width 2 -dash _ -fill {} -tag LINE] ; incr i $s }
-		$c bind B <Motion> {hoverline %W %x %y}
-		$c create text $bx $by -text $::Cursor -anchor center -fill {} -tag BLOCK_CURSOR
+		;#$c bind B <Motion> {hoverline %W %x %y}
+		$c create text $bx $by -text $::Cursor -anchor n -fill {} -tag BLOCK_CURSOR
+		;#$c bind B <Enter> {%W config -cursor none}
+		;#$c bind B <Leave> {%W config -cursor arrow}
 		return
 	}
-	set x [$c canvasx $_x] ; set y [$c canvasy $_y] 
+	;#set x [$c canvasx $_x] ; set y [$c canvasy $_y] 
 	;#$grand_annoucement many $many
 	$c itemconfig LINE -fill {}
 	;#set next [$c find closest $x $y $::lVar B]
@@ -606,9 +675,10 @@ proc hoverline {c {_x ""} {_y ""}} {
 	
 	if {[$c type $next] eq {line}} {$c itemconfig $next -fill gray ;
 		set ::lId $next ; set ::lPos [$c bbox $next] ; set ::lY [lindex $::lPos 1]
-		$c config -cursor none
+		$c config -cursor hand1
 		$c itemconfig BLOCK_CURSOR -fill black
-		$c moveto BLOCK_CURSOR $x [expr $::lY - $::lVar]
+		$c moveto BLOCK_CURSOR $x [expr $::lY - $::lVar + 5]
+		$c focus BLOCK_CURSOR
 		
 	}
 }
@@ -653,10 +723,10 @@ oo::class create Tabs {
 		
 		set com "$mc configure -scrollregion  [$mc bbox all]"
 		set pad [$m.canvas cget -highlightthickness]
-		$mc create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
+		;#$mc create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
 		
 		bind $m <Configure> $com
-		$mc bind TEXT <Motion> "TEXThover %x %y %h"
+		$mc bind TEXT <Motion> {TEXThover %W [%W canvasx %x] [%W canvasy %y] %h}
 		put_scrolls -control $mc -put .pane.main -xplace {pack $put.scrollx -side bottom -fill x } -yplace {pack $put.scrolly -side right -fill y }
 		pack $tbar -side top -expand 0 -fill x -pady 5
 		pack [canvas .pane.main.canvastop -highlightthickness 2 -highlightbackground purple -height 1c] -side top -after $tbar -fill x
@@ -665,8 +735,11 @@ oo::class create Tabs {
 		my fill_canvas_toolbar
 		my draw_document
 		my make_ruler
-		hoverline $mc
+		hoverline $mc ;# grand_annoucement $ox $oy $w $h <> $x $y; ; grand_annoucement OUT
+		bind $mc <Motion> { lassign [%W bbox B] ox oy w h ; set x [%W canvasx %x] ; set y [%W canvasy %y] ; if { $x  >= $ox && $x <= [expr $ox + $w] && $y >= $oy && $y <= [expr $oy + $h]} { hoverline %W $x $y } else {%W config -cursor arrow } }
+		$mc bind BLOCK_CURSOR <Key> { set x [%W canvasx %x] ; set y [%W canvasy %y] ; create_text %W $x $y %K %A}
 		my triangle_tick
+		focus $mc
 	}
 	
 	method create {txt} {
@@ -705,9 +778,7 @@ oo::class create Tabs {
 		
 		separator $tbar.separator3 label -pack
 		
-		$c bind BOX <Double-ButtonPress> { create_text [%W canvasx %x] [%W canvasy %y] } 
-		;#.pane.main.canvas bind BOX <Double-ButtonPress>  "[self] create_line [%W canvasx %x] [%W canvasy %y] "
-		;#.pane.main.canvas bind BOX <Motion> {puts ">>>>> %x %y [%W canvasx %x]"}
+
 		bind $c <ButtonPress> {.pane.main.canvas scan mark %x %y}
 		bind $c <B1-Motion> {.pane.main.canvas scan dragto %x %y 1}
 		bind $c <MouseWheel> "[self] mouse_wheel %x %y %D"
@@ -727,9 +798,9 @@ oo::class create Tabs {
 		$c create rectangle [polygon 250,18 +20,+402] -outline black -fill black -tag BOX
 		$c create rectangle [polygon 10,20 +250,+400] -outline black -fill white -tag {BOX B}
 		 
-		bind $m <Configure> {+
-			set w [winfo width %W]
-			%W.canvas moveto BOX [expr ($w-[lindex [%W.canvas bbox BOX] 2])/2+40 ] 40}
+		;#bind $m <Configure> {+
+		;#	set w [winfo width %W]
+		;#	%W.canvas moveto BOX [expr ($w-[lindex [%W.canvas bbox BOX] 2])/2+40 ] 40}
 			
 	}
 	method mouse_wheel {x y d} {
@@ -738,9 +809,7 @@ oo::class create Tabs {
 		if {$s eq {+}} {.pane.main.canvas scale all $x $y 2 2 ; puts ++++ } else {.pane.main.canvas scale all $x $y 0.5 0.5 ; puts --------}
 		
 	}
-	method create_line {x y} {
-		
-	}
+	
 	method make_ruler {} {
 		set ct .pane.main.canvastop
 		set c .pane.main.canvas
