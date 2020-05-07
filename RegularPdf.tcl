@@ -237,9 +237,8 @@ proc parallel {args} {
 #proc parallel {args} {parallelogram {*}$args}
 proc change_font {args} {
 	if {$::cFont eq {}} {
-		set r [.pane.main.canvas itemconfig TEXT -font]
-		if {[lsearch $r {*-size*}] != -1} {grand_annoucement canvas font returned size! $r}
-		set ::cFont [font actual [lindex $r 3]]
+		
+		set ::cFont [font actual TkDefaultFont -displayof .pane.main.canvas] ; grand_annoucement $::cFont
 		set ::cSize [get_args $::cFont -size]
 	} else {
 		#grand_annoucement cSize $::cSize
@@ -247,6 +246,7 @@ proc change_font {args} {
 	}
 	set ::cDim [.pane.main.canvas bbox TEXT]
 	.pane.main.canvas itemconfig TEXT -font "-size $::cSize"
+	.pane.main.canvas itemconfig BLOCK_CURSOR -font "-size $::cSize"
 	return $::cSize
 }
 # **Stack** #
@@ -528,22 +528,22 @@ proc create_text {c x y k a} {
 			grand_annoucement [expr $g - 1]
 			
 			$c icursor BLOCK_CURSOR [incr ::bbVar -1]
-			$c dchars BLOCK_CURSOR [expr $::bbVar + 1]
-			$c insert BLOCK_CURSOR insert $::Cursor
+			;#$c dchars BLOCK_CURSOR [expr $::bbVar + 1]
+			;#$c insert BLOCK_CURSOR insert $::Cursor
 			
 			}
 		}
 		Return {
 			set id [$c find withtag BLOCK_CURSOR]
-			$c dchars BLOCK_CURSOR $::bbVar
-			$c icursor BLOCK_CURSOR end
+			;#$c dchars BLOCK_CURSOR $::bbVar
+			;#$c icursor BLOCK_CURSOR end
 			$c insert BLOCK_CURSOR insert $::IconEnd
 			;#$c rchars BLOCK_CURSOR $::bbVar [expr $::bbVar + 1] $::IconEnd
 			$c itemconfig $id -tag TEXT
-			$c create text $x $y -text $::Cursor -anchor w  -tag BLOCK_CURSOR
+			$c create text $x $y -anchor w  -tag BLOCK_CURSOR
 		}
 		default {
-			$c insert BLOCK_CURSOR insert $a
+			$c insert BLOCK_CURSOR end $a
 			incr ::bbVar
 			
 		}
@@ -654,11 +654,11 @@ proc hoverline {c {x ""} {y ""}} {
 		set f [font metrics TkDefaultFont] ; set s [lsearch -glob $f -linespace] ; set s [lindex $f $s+1]
 		incr s 5
 		set ::lVar $s ; lassign [$c bbox B] bx by bw bh ; #grand_annoucement ABA [$c bbox B]
-		incr bx 7
+		incr bx 2
 		;#{grand_annoucement %W %x %y [%W canvasx %x] [%W canvasy %y] [%W bbox B]}
 		set many [expr {$bh} / $s] ; set count -1 ; set i $by ; incr i $s ; while {[incr count] < $many} { grand_annoucement [$c create line $bx $i $bw $i -width 2 -dash _ -fill {} -tag LINE] ; incr i $s }
 		;#$c bind B <Motion> {hoverline %W %x %y}
-		$c create text $bx $by -text $::Cursor -anchor n -fill {} -tag BLOCK_CURSOR
+		$c create text $bx $by -text {} -anchor w -fill {} -tag BLOCK_CURSOR
 		;#$c bind B <Enter> {%W config -cursor none}
 		;#$c bind B <Leave> {%W config -cursor arrow}
 		return
@@ -726,11 +726,13 @@ oo::class create Tabs {
 		;#$mc create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
 		
 		bind $m <Configure> $com
-		$mc bind TEXT <Motion> {TEXThover %W [%W canvasx %x] [%W canvasy %y] %h}
+		;#$mc bind TEXT <Motion> {TEXThover %W [%W canvasx %x] [%W canvasy %y] %h}
 		put_scrolls -control $mc -put .pane.main -xplace {pack $put.scrollx -side bottom -fill x } -yplace {pack $put.scrolly -side right -fill y }
 		pack $tbar -side top -expand 0 -fill x -pady 5
 		pack [canvas .pane.main.canvastop -highlightthickness 2 -highlightbackground purple -height 1c] -side top -after $tbar -fill x
-		pack [canvas .pane.main.canvasleft -highlightthickness 2 -highlightbackground brown -width 1c] -side left -fill y 
+		 
+		pack [canvas .pane.main.canvasleft -highlightthickness 2 -highlightbackground brown -width 1c] -side left -fill y
+		pack [frame .pane.main.tools ] -side left -fill y
 		pack $mc -expand 1 -fill both -side bottom
 		my fill_canvas_toolbar
 		my draw_document
@@ -740,6 +742,10 @@ oo::class create Tabs {
 		$mc bind BLOCK_CURSOR <Key> { set x [%W canvasx %x] ; set y [%W canvasy %y] ; create_text %W $x $y %K %A}
 		my triangle_tick
 		focus $mc
+		
+		pack [label .pane.main.tools.title -text Tools -relief groove] -pady 5 -padx 5 -expand 0 -fill x
+		pack [Reliefbutton .pane.main.tools.textd -text {Text Directed} -relief groove] -pady 5 -padx 5 -expand 1 -fill both
+		pack [Reliefbutton .pane.main.tools.lineh -text {Horizontal Line} -relief groove] -pady 5 -padx 5 -expand 1 -fill both
 	}
 	
 	method create {txt} {
@@ -773,8 +779,12 @@ oo::class create Tabs {
 		
 		separator $tbar.separator2 label -pack
 		
-		pack [button $tbar.zoomin -text "$::IconPlus $::IconZoom Zoom In" -relief groove -command {.pane.main.canvas scale all [expr [.pane.main.canvas cget -width]/2] [expr [.pane.main.canvas cget -height]/2] 2 2 }] -side left -expand 0 -padx 1
-		pack [button $tbar.zoomout -text "$::IconMinus $::IconZoom Zoom Out" -relief groove -command {.pane.main.canvas scale all [expr [.pane.main.canvas cget -width]/2] [expr [.pane.main.canvas cget -height]/2] .5 .5 }] -side left -expand 0 -padx 1
+		pack [button $tbar.zoomin -text "$::IconPlus $::IconZoom Zoom In" -relief groove -command {.pane.main.canvas scale all [expr [.pane.main.canvas cget -width]/2] [expr [.pane.main.canvas cget -height]/2] 2 2 ; 
+			.pane.main.toolbar.enlarge invoke
+		}] -side left -expand 0 -padx 1
+		pack [button $tbar.zoomout -text "$::IconMinus $::IconZoom Zoom Out" -relief groove -command {.pane.main.canvas scale all [expr [.pane.main.canvas cget -width]/2] [expr [.pane.main.canvas cget -height]/2] .5 .5 ;
+			.pane.main.toolbar.ensmall invoke
+		}] -side left -expand 0 -padx 1
 		
 		separator $tbar.separator3 label -pack
 		
