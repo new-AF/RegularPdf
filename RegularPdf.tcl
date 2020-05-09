@@ -45,9 +45,33 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
+variable cc .pane.main.canvas
 variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" BlockCursor "\u25a0" IconFontIncrease "\ud83d\uddda" IconFontDecrease "\ud83d\udddb" IconPlus "\uff0b" IconMinus "\u2212" IconZoom "\ud83d\udd0e" IconSeethrough "\u239a" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {} pi [expr asin(1)*2] paneY {} stackVar 0 lVar {} lId {} lPos {} lY {} tVar {} IconEnd "\ud83d\udccc"
 
 set Cursor $BlockCursor
+
+namespace eval mark {
+	variable once 1 x 0 y 0 a 0 b 0
+
+        proc moveonce {x y a b} {
+        	
+        	if {$mark::once} {
+        	;#puts "uuuuuuuuuuu $x $y $a $b"
+        	mark::move $x $y $a $b
+        	set mark::once 0}
+        }
+        proc move {{x 0} {y 0} {a 0} {b 0}} {
+        	;#puts "MOOOOOOOOOOOOOOVED $x $y $a $b"
+        	${::cc}top move all $x $y
+        	${::cc}left move all $a $b
+		
+        }
+	proc fill {{x 0} {y 0} {a 0} {b 0}} {
+		set mark::x $x
+		set mark::y $y
+		set mark::a $a
+		set mark::b $b}
+}
 
 proc deg_to_rad {input {opposite ""}} {
 	set unit [expr 2*$::pi/360]
@@ -165,7 +189,7 @@ proc polar_to_rect2 {args} {
 }
 
 proc polygon {args} {
-	grand_annoucement ARGS $args
+	;#grand_annoucement ARGS $args
 	set output [list]
 	
 	set count 0
@@ -187,7 +211,7 @@ proc polygon {args} {
 			set add 0
 			if {$sign != {-1}} { set add [string range $v $sign+1 end] ; set FSIGN [string index $v $sign] }  
 			
-			grand_annoucement -no $number $add ### "$number $FSIGN $add" ### [expr "$number $FSIGN $add"]
+			;#grand_annoucement -no $number $add ### "$number $FSIGN $add" ### [expr "$number $FSIGN $add"]
 			lappend output [expr "$number $FSIGN $add"]
 			
 			
@@ -230,7 +254,7 @@ proc parallel {args} {
 	
 	
 	
-	grand_annoucement $r || $rr
+	;#grand_annoucement $r || $rr
 	
 	return "$r $rr"
 }
@@ -238,7 +262,7 @@ proc parallel {args} {
 proc change_font {args} {
 	if {$::cFont eq {}} {
 		
-		set ::cFont [font actual TkDefaultFont -displayof .pane.main.canvas] ; grand_annoucement $::cFont
+		set ::cFont [font actual TkDefaultFont -displayof .pane.main.canvas] ; ;#grand_annoucement $::cFont
 		set ::cSize [get_args $::cFont -size]
 	} else {
 		#grand_annoucement cSize $::cSize
@@ -551,9 +575,9 @@ proc create_text {c x y k a} {
 	
 	return
 	set r [ $c find overlapping $x $y [expr $x + [font measure TkDefaultFont -displayof $c $::Cursor] ] $y ]
-	grand_annoucement $r
+	;#grand_annoucement $r
 	foreach v $r { if { [$c type $v] eq {text} } { set r $v ; break } }
-	grand_annoucement $r
+	;#grand_annoucement $r
 	if { $r eq {} } {
 	$c create text $x $y -tag TEXT -anchor w -text $k
 	}
@@ -600,7 +624,7 @@ proc rotate {args} {
 	lappend args -XDefaults {"" 0 all}
 	set got [new_args $args -c -angle -id] ;#tagOrID
 	lassign $got c angle id
-	grand_annoucement GOT $got
+	;#grand_annoucement GOT $got
 	set send [list]
 	
 	set target [$c coords $id]
@@ -629,9 +653,12 @@ proc triadd {args} {
 }
 proc triangle {args} {
 	lappend args -XDefaults {{0 0} {60 60} 50 TRIANGLE .pane.main.canvas}
-	set temp [new_args $args -xy -angles -radius -tag -c] ; grand_annoucement $temp
-	lassign $temp ox langle radius tag c ; lassign $ox ox oy ; lassign $langle langle rangle
-	grand_annoucement tag $tag
+	set temp [new_args $args -xy -angles -radius -tag -c]
+	;#grand_annoucement $temp
+	lassign $temp ox langle radius tag c
+	lassign $ox ox oy
+	lassign $langle langle rangle
+	;#grand_annoucement tag $tag
 	set langle [minus 180 $langle] 	;#radius
 	
 	lassign [polar_to_rect2 -angle $langle -radius $radius -shift {0 0}] a b
@@ -683,6 +710,46 @@ proc hoverline {c {x ""} {y ""}} {
 	}
 }
 
+proc lineh_pdf {w} {
+}
+
+proc ruler {top left} {
+	set ct .pane.main.canvastop
+	set c .pane.main.canvas
+	set cl .pane.main.canvasleft
+	
+	lassign $top startx  w 
+	lassign $left starty  h 
+	
+	set pad [$c cget -highlightthickness]
+	
+	set xpad $pad
+	set ypad [expr $pad+5]
+	
+	set tickLength [expr ($pad+1)*2]
+	
+	$ct create line 0 0 [$ct cget -width] 0 -width 5 -fill black -tag topline
+	$cl create line 0 0 0 [$cl cget -height] -width 5 -fill black -tag leftline
+	
+	$c create line 0 0 1cm 0 -fill "" -tag cm
+	set cm [lindex [$c bbox cm] 2]
+	set tenth [expr $cm/10.0]
+	
+	
+	for {set x $startx; set end [expr ceil($w/$cm)] } {$x < $end} {incr x} {
+		puts ++++++++++/$end
+		$ct create line ${x}c 0 ${x}c [expr $ypad+11]
+		$ct create text ${x}c  [expr $ypad+11] -anchor n -text $x
+		
+		set count 0
+		while {[incr count] < 10} { 
+			$ct create line ${x}.${count}c 0 ${x}.${count}c [expr $ypad+$count] }
+	}
+	for {set x 0; set end [expr ceil($h/$tenth)]} {$x < $h} {incr x} {
+		$ct create line 0 ${x}c 0 $ypad
+	}
+}
+
 oo::class create Tabs { 
 	
 	variable fcount newcount lobj sobj m mc 		t tc
@@ -722,6 +789,7 @@ oo::class create Tabs {
 		#place .main -relx 0.34 -y 0.4in -relwidth 0.3 -relheight 1
 		
 		set com "$mc configure -scrollregion  [$mc bbox all]"
+		bind $mc <Gravity> "puts 123"
 		set pad [$m.canvas cget -highlightthickness]
 		;#$mc create text [expr 0+$pad] [expr 0+$pad] -text {INITIAL TEXT} -tag TEXT -anchor nw
 		
@@ -729,9 +797,9 @@ oo::class create Tabs {
 		;#$mc bind TEXT <Motion> {TEXThover %W [%W canvasx %x] [%W canvasy %y] %h}
 		put_scrolls -control $mc -put .pane.main -xplace {pack $put.scrollx -side bottom -fill x } -yplace {pack $put.scrolly -side right -fill y }
 		pack $tbar -side top -expand 0 -fill x -pady 5
-		pack [canvas .pane.main.canvastop -highlightthickness 2 -highlightbackground purple -height 1c] -side top -after $tbar -fill x
+		pack [canvas .pane.main.canvastop -highlightthickness 2  -height 1c] -side top -after $tbar -fill x
 		 
-		pack [canvas .pane.main.canvasleft -highlightthickness 2 -highlightbackground brown -width 1c] -side left -fill y
+		pack [canvas .pane.main.canvasleft -highlightthickness 2 -width 1c] -side left -fill y
 		pack [frame .pane.main.tools ] -side left -fill y
 		pack $mc -expand 1 -fill both -side bottom
 		my fill_canvas_toolbar
@@ -743,9 +811,10 @@ oo::class create Tabs {
 		my triangle_tick
 		focus $mc
 		
-		pack [label .pane.main.tools.title -text Tools -relief groove] -pady 5 -padx 5 -expand 0 -fill x
-		pack [Reliefbutton .pane.main.tools.textd -text {Text Directed} -relief groove] -pady 5 -padx 5 -expand 1 -fill both
-		pack [Reliefbutton .pane.main.tools.lineh -text {Horizontal Line} -relief groove] -pady 5 -padx 5 -expand 1 -fill both
+		;#pack [label .pane.main.tools.title -text Tools -relief groove] -pady 5 -padx 5 -expand 0 -fill x
+		;#pack [Reliefbutton .pane.main.tools.textd -text {Text Directed} -relief groove] -pady 5 -padx 5 -expand 1 -fill both
+		;#pack [Reliefbutton .pane.main.tools.lineh -text {Horizontal Line} -relief groove] -pady 5 -padx 5 -expand 1 -fill both
+		;#bind_Reliefbutton .pane.main.tools.lineh lineh_pdf
 	}
 	
 	method create {txt} {
@@ -788,10 +857,25 @@ oo::class create Tabs {
 		
 		separator $tbar.separator3 label -pack
 		
-
-		bind $c <ButtonPress> {.pane.main.canvas scan mark %x %y}
-		bind $c <B1-Motion> {.pane.main.canvas scan dragto %x %y 1}
+		bind $c <ButtonPress> "[self] mark %W %x %y"
+		bind $c <B1-Motion> "[self] dragto %W %x %y"
 		bind $c <MouseWheel> "[self] mouse_wheel %x %y %D"
+	}
+	method mark {c x y} {
+		$c scan mark $x $y
+		set ct [subst $c]top
+		$ct scan mark $x 0
+		;#mark::from $x $y
+	}
+	method dragto {c x y} {
+		$c scan dragto $x $y 1
+		
+		set ct [subst $c]top
+		$ct scan dragto $x 0 1
+		$ct create text 0 0 -text 0 -anchor n
+		;#mark::to $x $y
+		puts "FINAL ->   $x,$y"
+		;#
 	}
 	method draw_document {} {
 		set c .pane.main.canvas
@@ -807,7 +891,7 @@ oo::class create Tabs {
 		
 		$c create rectangle [polygon 250,18 +20,+402] -outline black -fill black -tag BOX
 		$c create rectangle [polygon 10,20 +250,+400] -outline black -fill white -tag {BOX B}
-		 
+		$c move BOX -10 -17
 		;#bind $m <Configure> {+
 		;#	set w [winfo width %W]
 		;#	%W.canvas moveto BOX [expr ($w-[lindex [%W.canvas bbox BOX] 2])/2+40 ] 40}
@@ -821,49 +905,14 @@ oo::class create Tabs {
 	}
 	
 	method make_ruler {} {
-		set ct .pane.main.canvastop
-		set c .pane.main.canvas
-		set cl .pane.main.canvasleft
-		;#puts **********[$c bbox BOX ]
-		;#puts **********[$c cget -height ]
+		ruler "0 [$::cc cget -width]" "0 [$::cc cget -height]"
 		
-		variable w [$c cget -width]  h [$c cget -height]  pad [$c cget -highlightthickness]
-		
-		variable x $pad  y $pad
-		
-		variable tickLength [expr ($pad+1)*2]
-		
-		
-		set testcm [$c create line 0 0 1cm 0 -fill ""]
-		
-		variable cm [lindex [$c bbox $testcm] 2]  tenth [expr $cm/10]
-		set max_tickLength [expr $tickLength+$tenth+5]
-		
-		for {set i 0 ; set count 0} {$i < $w} {incr i $cm ; incr count} {
-			set end [expr $i+$cm]
-			for {set j $i ; set tick 0} {$j < $end} {incr j $tenth; incr tick} {
-				$ct create line $j $pad $j [expr $tickLength+$tick] -fill black -tag TICK$tick
-				
-			}
-			$ct create text $i $max_tickLength -text $count -anchor n
-		}
-		
-		
-		for {set i 0 ; set count 0} {$i < $w} {incr i $cm ; incr count} {
-			set end [expr $i+$cm]
-			for {set j $i ; set tick 0} {$j < $end} {incr j $tenth; incr tick} {
-				$cl create line 0 $j [expr $tickLength+$tick] $j -fill black -tag TICK$tick
-				
-			}
-			$cl create text $max_tickLength $i -text $count -anchor w
-		}
-	
 	}
 	method triangle_tick {} {
 		set c .pane.main.canvas
 		set ct .pane.main.canvastop
 		
-		set t [triangle -angles {80 80} -radius 1 -tag tri -c $ct -xy "50 [$ct cget -height]"]
+		set t [triangle -angles {60 60} -radius 1 -tag tri -c $ct -xy "50 [$ct cget -height]"]
 		$ct itemconfig $t -width 1
 	}
 	
@@ -918,13 +967,25 @@ proc ToolbarButton {args} {
 	bind [lindex $args 0] <Leave> {buttonleave %W}
 	return $result
 }
-
+proc saveaspdf {} {
+	set c .pane.main.canvas
+	set out {%PDF-1.4
+	%%EOF
+	6 0 obj <<Type C
+	}
+}
 # ***Toolbar*** #
 frame .toolbar -relief flat -bd 5 ; pack [ttk::separator .toolbar.endseparator -orient horizontal] -side bottom -expand 1 -fill x -pady 1
 pack [button .toolbar.first -text {} -relief flat -state disabled] -side left -expand 0 -fill none
 place .toolbar -x 0 -y 0 -relwidth 1 -height 0.4in
 ToolbarButton .toolbar.stack -text "\u2b94 Stack Things" -command stack_things
+
+ToolbarButton .toolbar.saveaspdf -text "Save as PDF" -command saveaspdf
+
 pack .toolbar.stack -side left
+pack [ttk::separator .toolbar.endseparator2 -orient vertical] -side left -expand 0 -fill y -padx 1
+pack .toolbar.saveaspdf -side left
+
 ####
 
 proc Adjustf {} {
@@ -1163,5 +1224,15 @@ bind . <Visibility> {
 	set cDim [.pane.main.canvas bbox TEXT]
 	set ::paneY [expr max([winfo reqheight .toolbar],[winfo height .toolbar])]
 	place configure .pane -y $::paneY
+	
+	
+	
 	bind . <Visibility>
+}
+bind $cc <Visibility> {
+	set dx [expr [winfo x ${::cc}]-[winfo x ${::cc}top]]
+	set dy [expr [winfo y ${::cc}]-[winfo y ${::cc}left]]
+	;#grand_annoucement zzzzzzzzzz $dx $dy
+	mark::moveonce $dx 0 0 $dy
+	bind $cc <Visibility>
 }
