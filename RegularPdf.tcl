@@ -46,7 +46,7 @@ foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
 variable cc .pane.main.canvas
-variable Font {TkDefaultFont} IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" BlockCursor "\u25a0" IconFontIncrease "\ud83d\uddda" IconFontDecrease "\ud83d\udddb" IconPlus "\uff0b" IconMinus "\u2212" IconZoom "\ud83d\udd0e" IconSeethrough "\u239a" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {} pi [expr asin(1)*2] paneY {} stackVar 0 lVar {} lId {} lPos {} lY {} tVar {} IconEnd "\ud83d\udccc"
+variable Font {TkDefaultFont} IconSave "\ud83d\udcbe" IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" BlockCursor "\u25a0" IconFontIncrease "\ud83d\uddda" IconFontDecrease "\ud83d\udddb" IconPlus "\uff0b" IconMinus "\u2212" IconZoom "\ud83d\udd0e" IconSeethrough "\u239a" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {} pi [expr asin(1)*2] paneY {} stackVar 0 lVar {} lId {} lPos {} lY {} tVar {} IconEnd "\ud83d\udccc"
 
 set Cursor $BlockCursor
 
@@ -675,15 +675,16 @@ proc triangle {args} {
 proc blink_line_cursor {{on 0}} {
 	if $on {} else {}
 }
-proc hoverline {c {x ""} {y ""}} {
+proc hoverline {c {x ""} {y ""} args} {
 	
-	if [string length $x]==0 {
+	if {$x eq "" } {
 		set f [font metrics TkDefaultFont] ; set s [lsearch -glob $f -linespace] ; set s [lindex $f $s+1]
 		incr s 5
 		set ::lVar $s ; lassign [$c bbox B] bx by bw bh ; #grand_annoucement ABA [$c bbox B]
 		incr bx 2
-		;#{grand_annoucement %W %x %y [%W canvasx %x] [%W canvasy %y] [%W bbox B]}
-		set many [expr {$bh} / $s] ; set count -1 ; set i $by ; incr i $s ; while {[incr count] < $many} { grand_annoucement [$c create line $bx $i $bw $i -width 2 -dash _ -fill {} -tag LINE] ; incr i $s }
+		
+		set many [expr {$bh} / $s] ; set count -1 ; set i $by ; incr i $s ; while {[incr count] < $many} { 
+			grand_annoucement [$c create line $bx $i $bw $i -width 2 -dash _ -fill {} -tag LINE] ; incr i $s }
 		;#$c bind B <Motion> {hoverline %W %x %y}
 		$c create text $bx $by -text {} -anchor w -fill {} -tag BLOCK_CURSOR
 		;#$c bind B <Enter> {%W config -cursor none}
@@ -728,26 +729,40 @@ proc ruler {top left} {
 	
 	set tickLength [expr ($pad+1)*2]
 	
-	$ct create line 0 0 [$ct cget -width] 0 -width 5 -fill black -tag topline
-	$cl create line 0 0 0 [$cl cget -height] -width 5 -fill black -tag leftline
+	$ct create line 0 0 400c 0 -width 5 -fill black -tag topline
+	$ct create text 15 [expr $ypad+11] -text cm -anchor n
+	$cl create text [expr $ypad+11+10] 0 -text cm -anchor w
+	$cl create line 0 0 0 400c -width 5 -fill black -tag leftline
+	
 	
 	$c create line 0 0 1cm 0 -fill "" -tag cm
 	set cm [lindex [$c bbox cm] 2]
 	set tenth [expr $cm/10.0]
 	
+
 	
-	for {set x $startx; set end [expr ceil($w/$cm)] } {$x < $end} {incr x} {
-		puts ++++++++++/$end
+	for {set x $startx; set end 400} {$x < $end} {incr x} {
+		puts "x=$x $end=$end" 
 		$ct create line ${x}c 0 ${x}c [expr $ypad+11]
 		$ct create text ${x}c  [expr $ypad+11] -anchor n -text $x
 		
 		set count 0
-		while {[incr count] < 10} { 
+		while {[incr count] < 10} {
+			;#puts "count=$count x=$x should be less than 10" 
 			$ct create line ${x}.${count}c 0 ${x}.${count}c [expr $ypad+$count] }
 	}
-	for {set x 0; set end [expr ceil($h/$tenth)]} {$x < $h} {incr x} {
-		$ct create line 0 ${x}c 0 $ypad
+	for {set x $startx; set end 400} {$x < $end} {incr x} {
+		puts "x=$x $end=$end" 
+		$cl create line 0 ${x}c [expr $ypad+11] ${x}c
+		$cl create text  [expr $ypad+11] ${x}c -anchor w -text $x
+		
+		set count 0
+		while {[incr count] < 10} {
+			;#puts "count=$count x=$x should be less than 10" 
+			$cl create line 0 ${x}.${count}c [expr $ypad+$count] ${x}.${count}c  }
 	}
+	
+
 }
 
 oo::class create Tabs { 
@@ -806,9 +821,9 @@ oo::class create Tabs {
 		my draw_document
 		my make_ruler
 		hoverline $mc ;# grand_annoucement $ox $oy $w $h <> $x $y; ; grand_annoucement OUT
-		bind $mc <Motion> { lassign [%W bbox B] ox oy w h ; set x [%W canvasx %x] ; set y [%W canvasy %y] ; if { $x  >= $ox && $x <= [expr $ox + $w] && $y >= $oy && $y <= [expr $oy + $h]} { hoverline %W $x $y } else {%W config -cursor arrow } }
+		bind $mc <Motion> { lassign [%W bbox B] ox oy w h ; set x [%W canvasx %x] ; set y [%W canvasy %y] ; if { $x  >= $ox && $x <= [expr $ox + $w] && $y >= $oy && $y <= [expr $oy + $h]} { hoverline %W $x $y } else {%W config -cursor arrow ; %W itemconfig LINE -fill {} ; %W focus ""} }
 		$mc bind BLOCK_CURSOR <Key> { set x [%W canvasx %x] ; set y [%W canvasy %y] ; create_text %W $x $y %K %A}
-		my triangle_tick
+		;#my triangle_tick
 		focus $mc
 		
 		;#pack [label .pane.main.tools.title -text Tools -relief groove] -pady 5 -padx 5 -expand 0 -fill x
@@ -864,17 +879,20 @@ oo::class create Tabs {
 	method mark {c x y} {
 		$c scan mark $x $y
 		set ct [subst $c]top
+		set cl [subst $c]left
 		$ct scan mark $x 0
+		$cl scan mark 0 $y
 		;#mark::from $x $y
 	}
 	method dragto {c x y} {
 		$c scan dragto $x $y 1
 		
 		set ct [subst $c]top
+		set cl [subst $c]left
 		$ct scan dragto $x 0 1
-		$ct create text 0 0 -text 0 -anchor n
+		$cl scan dragto 0 $y 1
 		;#mark::to $x $y
-		puts "FINAL ->   $x,$y"
+		;#puts "FINAL ->   $x,$y"
 		;#
 	}
 	method draw_document {} {
@@ -905,6 +923,7 @@ oo::class create Tabs {
 	}
 	
 	method make_ruler {} {
+		
 		ruler "0 [$::cc cget -width]" "0 [$::cc cget -height]"
 		
 	}
@@ -967,24 +986,178 @@ proc ToolbarButton {args} {
 	bind [lindex $args 0] <Leave> {buttonleave %W}
 	return $result
 }
-proc saveaspdf {} {
-	set c .pane.main.canvas
-	set out {%PDF-1.4
-	%%EOF
-	6 0 obj <<Type C
+proc header {{v 1.4}} {
+	set s "%PDF-$v"
+	return "[dict create *type header *thing $s *length [string length $s]"
+}
+proc  objectdict { args } {
+	set inner [dict create {*}$args ]
+	set outer [dict create  *type dict *lengthI 4 *length 4 *begin << *end >> *thing {}  ] ; # lengthIndividual ; *length->cumulative length list
+        
+	
+	dict set outer *thing $inner
+	dict incr outer *length [string length $args]
+	dict incr outer *lengthI [string length $args]
+        
+        return $outer
+}
+
+set OBJ 0 
+proc object { type args } {
+	set x [object$type {*}$args]
+	
+	
+	set a [dict get $x *begin]
+	set b [dict get $x *end]
+	
+	dict set x *type "[dict get $x *type] object"
+	set aa "[incr $::OBJ] 0 obj"
+	set bb endobj
+	
+	;#Length 
+	set l [string length $aa]
+	incr l [string length $bb]
+	
+	dict append x *lengthI " $l"
+	
+	set cl [dict get $x *length]
+	incr cl $l
+	
+	dict append x *length " $cl"
+	
+	;#Begin << obj 1 0
+	dict set x *begin [list $a $aa]
+	
+	;#End >> endobj
+	dict set x *end [list $b $bb]
+	
+	return $x
+} 
+proc put {x} {
+	
+	set a [lreverse [dict get $x *begin]]
+	
+	puts "A-> $a"
+	
+	set b  [dict get $x *end]
+	
+	puts "B-> $b"
+	set g "$a
+[dict get $x *thing]
+$b
+"
+	
+	puts $g
+}
+proc reftable { {update 1} {_return 1} } {
+	
+	
+}
+ namespace eval save {
+	set filter {}
+	set exts {{"All Files" *} {"PostScript Files" {*.ps}}}
+	 
+	proc pdf {args} {
+		lassign [$::cc bbox B] bx by bw bh
+	set single "4 0 obj
+		<<
+		/Type /Page
+		/Parent 3 0 R
+		/Contents <</Length 30>> stream
+		BT 50 50 Td
+		(HELLO)Tj
+		ET
+		endstream
+		endobj"
+	
+	set pages {3 0 obj
+		<<
+		/Type /Pages Kids [4 0 R]
+		/MediaBox \[0 0 $bw $bh\]>>
+		endobj
+		
+	}
+	set meta {2 0 obj
+		<<
+		/Title (A PDF FILE)
+		/Author (Abdullah Fatota)
+		/Creator (RegularPDF)
+		/Producer (RegularPDF)>>
+		endobj
+		
+	}
+	set catalog {1 0 obj
+		<<
+		/Type /Catalog 
+		/Pages 3 0 R 
+		/Metadata 2 0 R>>
+		endobj
+	}
+	
+	
+	
+	set trail {<<
+		/Size 5
+		/Root 1 0 R
+		>>
+	}
+	set xref [list xref {0 5} {0000000000 65535 f} ]
+	set count 0
+	set dummy {}
+	
+	set out [open ~/TestPDF/out.pdf w]
+	foreach v {start catalog meta pages single ""} {
+		if {$v ne {}} {set o [join [lmap v [split [set $v] \n] {string trim $v}] ]}
+		if { $v ne {start} } { lappend xref "[format %010d $count] 00000 n" }
+		incr count [string length $o] ; incr count ; puts "|$o| count=$count"
+		
+	}
+	incr count -1
+	puts $xref
+	foreach v {start catalog meta pages single } {
+		if {$v ne {}} {set o [string trim [set $v]]}
+		puts $out $o
+	}
+	puts  $out [join $xref \n]
+	puts $out $trail
+	puts $out startxref
+	puts $out $count
+	puts $out %%EOF
+	close $out
+}
+	 
+	proc ps {} {	
+		set path [tk_getSaveFile -filetypes $save::exts -title {Save current Document as} -typevariable save::filter]
+		lassign [$::cc bbox B] bx by bw bh
+		puts "x=$bx y=$by width=$bw height=$bh pagewidth=$bw pageheight=$bh"
+		$::cc postscript -fontmap -*-Courier-Bold-R-Normal--*-120-* -file $path[save::inusefilter] -x $bx -y $by -pagey $bh -width $bw -height $bh -pageanchor c -pagewidth [expr 2*$bw]
+	
+}
+	proc inusefilter {} {
+		set i  [lsearch -index 0 $save::exts $save::filter]
+		set in [lindex $save::exts $i 1] ;# intermediate {"PostScript Files" {*.ps}}
+		set r [string range $in 1 end]
+		;#puts "filter=$save::filter i1=$in i=$i search=$r<"
+		return $r
 	}
 }
+
+
 # ***Toolbar*** #
-frame .toolbar -relief flat -bd 5 ; pack [ttk::separator .toolbar.endseparator -orient horizontal] -side bottom -expand 1 -fill x -pady 1
+frame .toolbar -relief flat -bd 5
+pack [ttk::separator .toolbar.endseparator -orient horizontal] -side bottom -expand 1 -fill x -pady 1
 pack [button .toolbar.first -text {} -relief flat -state disabled] -side left -expand 0 -fill none
 place .toolbar -x 0 -y 0 -relwidth 1 -height 0.4in
 ToolbarButton .toolbar.stack -text "\u2b94 Stack Things" -command stack_things
 
-ToolbarButton .toolbar.saveaspdf -text "Save as PDF" -command saveaspdf
+
+
 
 pack .toolbar.stack -side left
 pack [ttk::separator .toolbar.endseparator2 -orient vertical] -side left -expand 0 -fill y -padx 1
-pack .toolbar.saveaspdf -side left
+pack [ToolbarButton .toolbar.save1 -text "$IconSave Save as PostScript" -command save::ps] -side left
+pack [ttk::separator .toolbar.endseparator3 -orient vertical] -side left -expand 0 -fill y -padx 1
+pack [ToolbarButton .toolbar.save2 -text "$IconSave Save as PDF" -command save::pdf] -side left
 
 ####
 
