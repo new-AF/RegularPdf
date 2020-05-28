@@ -992,7 +992,7 @@ proc header {{v 1.4}} {
 }
 proc  objectdict { args } {
 	set inner [dict create {*}$args ]
-	set outer [dict create  *type dict *lengthI 4 *length 4 *begin << *end >> *thing {}  ] ; # lengthIndividual ; *length->cumulative length list
+	set outer [dict create  *type dict *lengthI 4 *length 4 *begin << *end >> *thing {} *aNewLine "\n" *bNewLine "\n" ] ; # lengthIndividual ; *length->cumulative length list
         
 	
 	dict set outer *thing $inner
@@ -1022,7 +1022,7 @@ proc object { type args } {
 	
 	set cl [dict get $x *length]
 	incr cl $l
-	
+	;#puts "======================{$x}========================"
 	dict append x *length " $cl"
 	
 	;#Begin << obj 1 0
@@ -1035,17 +1035,17 @@ proc object { type args } {
 } 
 proc put {x} {
 	
-	set a [lreverse [dict get $x *begin]]
+	puts "X->$x"
 	
-	puts "A-> $a"
+	set al [lreverse [dict get $x *begin]]
+	set a "[lindex $al 0] [lrange $al 1 end]"
+	
+	#puts "A->$a"
 	
 	set b  [dict get $x *end]
 	
-	puts "B-> $b"
-	set g "$a
-[dict get $x *thing]
-$b
-"
+	#puts "B-> $b"
+	set g "[dict get $x *aNewLine]$a[dict get $x *thing]$b[dict get $x *bNewLine]"
 	
 	puts $g
 }
@@ -1307,13 +1307,15 @@ puts "**$v**"
 menu .mMenu -tearoff 0
 proc setmenu {{what .mMenu}} {. config -menu $what}
 proc debug {} {
-	puts [polygon 123,456 +1,+1]
+	
+	{puts [polygon 123,456 +1,+1]
 	puts [polygon 45.123,23.435 +100,+0]
 	puts [polygon 45.123,23.435 +100,365]
 	puts [polygon 45.123,23.435 +100,#0+0]
 	puts [polygon 45.123,23.435 +100,#10+0]
-	puts [polygon 45.123,23.435 +100,#10]
-	
+	puts [polygon 45.123,23.435 +100,#10]}
+	put [object dict j 1]
+
 }
 # Help->About Menu
 menu .mMenu.mHelp -tearoff 0
