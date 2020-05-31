@@ -4,10 +4,11 @@
 
 package require Tk
 package require TclOO
-wm title . {RegularPDF}
+wm title . RegularPDF
 wm geometry . "700x400+[expr [winfo vrootwidth .]/2]+[expr [winfo vrootheight .]/2]"
 panedwindow .pane -showhandle 1 -sashwidth 10 -sashpad 20 -sashrelief raised -handlepad 0
 place .pane -x 0 -y 0 -relwidth 1 -relheight 0.9
+
 
  frame .resize -bd 5 -relief groove
 # About Dialog Window
@@ -92,12 +93,7 @@ proc polar_to_rect {angle_deg_input {r 1} {origin {0 0}} {dontConvertToRad false
 }
 
 proc grand_annoucement {args} {
-	puts -nonewline {******* }
-	if {{-no} ni $args} {
-	for {set i 0 ; set len [llength $args]} {$i < $len} {incr i 2} {
-		puts -nonewline "[join [lrange $args $i $i+1 ] |] "
-	}} else {puts -nonewline $args}
-	puts {<<***}
+	puts ==$args==
 }
 proc get_args {List args} {
 	set r [list]
@@ -684,7 +680,8 @@ proc hoverline {c {x ""} {y ""} args} {
 		incr bx 2
 		
 		set many [expr {$bh} / $s] ; set count -1 ; set i $by ; incr i $s ; while {[incr count] < $many} { 
-			grand_annoucement [$c create line $bx $i $bw $i -width 2 -dash _ -fill {} -tag LINE] ; incr i $s }
+			#grand_annoucement 
+			$c create line $bx $i $bw $i -width 2 -dash _ -fill {} -tag LINE ; incr i $s }
 		;#$c bind B <Motion> {hoverline %W %x %y}
 		$c create text $bx $by -text {} -anchor w -fill {} -tag BLOCK_CURSOR
 		;#$c bind B <Enter> {%W config -cursor none}
@@ -742,7 +739,7 @@ proc ruler {top left} {
 
 	
 	for {set x $startx; set end 400} {$x < $end} {incr x} {
-		puts "x=$x $end=$end" 
+		#puts "x=$x end=$end" 
 		$ct create line ${x}c 0 ${x}c [expr $ypad+11]
 		$ct create text ${x}c  [expr $ypad+11] -anchor n -text $x
 		
@@ -752,7 +749,7 @@ proc ruler {top left} {
 			$ct create line ${x}.${count}c 0 ${x}.${count}c [expr $ypad+$count] }
 	}
 	for {set x $startx; set end 400} {$x < $end} {incr x} {
-		puts "x=$x $end=$end" 
+		#puts "x=$x end=$end" 
 		$cl create line 0 ${x}c [expr $ypad+11] ${x}c
 		$cl create text  [expr $ypad+11] ${x}c -anchor w -text $x
 		
@@ -954,7 +951,7 @@ set dd [ttk::separator $a.1separator -orient horizontal]
 
 # List box
 set e [listbox $a.0list -relief flat -highlightthickness 2 -highlightcolor [. cget -bg] -cursor hand2 -activestyle none -selectmode single -listvar eVar]
-set f [listbox $a.1list -relief flat -highlightthickness 2 -highlightcolor red -cursor hand2 -activestyle dotbox -bg [. cget -bg] -listvar fVar -justify center]
+set f [listbox $a.1list -relief flat -highlightthickness 2 -highlightcolor red -cursor hand2 -activestyle dotbox -bg [. cget -bg] -listvar fVar -justify center ]
 
 proc distribute_scroll {things args} { foreach v $things { $v {*}$args } }
 variable g [scrollbar $a.0scroll -orient vertical -command "distribute_scroll {$e $f} yview"] h [scrollbar $a.1scroll -orient horizontal -command "$e xview"]
@@ -991,63 +988,55 @@ proc header {{v 1.4}} {
 	return "[dict create *type header *thing $s *length [string length $s]"
 }
 proc  objectdict { args } {
-	set inner [dict create {*}$args ]
-	set outer [dict create  *type dict *lengthI 4 *length 4 *begin << *end >> *thing {} *aNewLine "\n" *bNewLine "\n" ] ; # lengthIndividual ; *length->cumulative length list
+
+set inner [dict create {*}$args ]
+set outer [dict create  *type dict *lengthEach 6 *length 6 *begin << *end >> *thing {}	*beginDelim [list { }] *endDelim [list { }] *cap {} *tail {} ] ; # lengthIndividual ; *length->cumulative length list
         
 	
-	dict set outer *thing $inner
-	dict incr outer *length [string length $args]
-	dict incr outer *lengthI [string length $args]
+dict set outer *thing $inner
+dict incr outer *length [string length $args]
+dict incr outer *lengthEach [string length $args]
         
-        return $outer
+return $outer
 }
 
 set OBJ 0 
 proc object { type args } {
-	set x [object$type {*}$args]
 	
+set x [object$type {*}$args]
+set a "[incr $::OBJ] 0 obj"
+set b endobj
+set l [expr " [string length $a] + [string length $b] + 2"]
+#+ 2 for { } and { }
+dict lappend x *lengthEach $l
+dict lappend x *length [expr "[lindex [dict get $x *length] end] + $l"]
 	
-	set a [dict get $x *begin]
-	set b [dict get $x *end]
-	
-	dict set x *type "[dict get $x *type] object"
-	set aa "[incr $::OBJ] 0 obj"
-	set bb endobj
-	
-	;#Length 
-	set l [string length $aa]
-	incr l [string length $bb]
-	
-	dict append x *lengthI " $l"
-	
-	set cl [dict get $x *length]
-	incr cl $l
-	;#puts "======================{$x}========================"
-	dict append x *length " $cl"
-	
-	;#Begin << obj 1 0
-	dict set x *begin [list $a $aa]
-	
-	;#End >> endobj
-	dict set x *end [list $b $bb]
-	
-	return $x
+dict set x *begin [list $a [dict get $x *begin]]
+puts "=[dict get $x *begin]="
+dict lappend x *end $b
+dict lappend x *beginDelim { }
+dict lappend x *endDelim { }
+dict lappend x *type object
+
+
+return $x
 } 
 proc put {x} {
 	
-	puts "X->$x"
+puts "[info level 0]"
+
+set a [dict get $x *begin]
+set a0 [dict get $x *beginDelim]
+set b [dict get $x *end]
+set b0 [dict get $x *endDelim]
+
+set a [string cat {*}[lmap i $a j $a0 {puts /$i$j/;subst "$i$j"}]]
+set b [string cat {*}[lmap i $b j $b0 {subst "$j$i"}]]
+#puts "B-> $b"
+set g "[dict get $x *cap]$a[dict get $x *thing]$b[dict get $x *tail]"
+
+puts =$g=
 	
-	set al [lreverse [dict get $x *begin]]
-	set a "[lindex $al 0] [lrange $al 1 end]"
-	
-	#puts "A->$a"
-	
-	set b  [dict get $x *end]
-	
-	#puts "B-> $b"
-	set g "[dict get $x *aNewLine]$a[dict get $x *thing]$b[dict get $x *bNewLine]"
-	
-	puts $g
 }
 proc reftable { {update 1} {_return 1} } {
 	
@@ -1308,12 +1297,6 @@ menu .mMenu -tearoff 0
 proc setmenu {{what .mMenu}} {. config -menu $what}
 proc debug {} {
 	
-	{puts [polygon 123,456 +1,+1]
-	puts [polygon 45.123,23.435 +100,+0]
-	puts [polygon 45.123,23.435 +100,365]
-	puts [polygon 45.123,23.435 +100,#0+0]
-	puts [polygon 45.123,23.435 +100,#10+0]
-	puts [polygon 45.123,23.435 +100,#10]}
 	put [object dict j 1]
 
 }
