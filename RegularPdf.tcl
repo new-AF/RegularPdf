@@ -983,6 +983,12 @@ proc ToolbarButton {args} {
 	bind [lindex $args 0] <Leave> {buttonleave %W}
 	return $result
 }
+proc dictlincr {d key index  {by 1} } {
+ upvar $d x
+ set l [dict get $x $key]
+ dict set x $key [lreplace $l $index $index [expr [lindex $l $index]+$by ]]
+ concat
+}
 proc header {{v 1.4}} {
 	set s "%PDF-$v"
 	return "[dict create *type header *thing $s *length [string length $s]]"
@@ -1047,7 +1053,11 @@ set t [dict get $x *type]
 #puts "B-> $b"
 
 set r [switch [lindex $t 0] {
-   stream { set p [lsearch $a <<*] ; set pEnd [lsearch $b *>>] ; set a [lreplace $a $p $p [lindex $a $p] [dict get $x *thing] "[lindex $b $pEnd] "] ; set b [lreplace $b $pEnd $pEnd] ; subst [dict get $x *stream]}
+   stream { set p [lsearch $a <<*] ; set pEnd [lsearch $b *>>]
+   set a [lreplace $a $p $p [lindex $a $p] [dict get $x *thing] "[lindex $b $pEnd] "]
+   set b [lreplace $b $pEnd $pEnd] ; dictlincr x *lengthEach 0 1
+   subst [list [join [dict get $x *stream] { }]]}
+   
    dict { subst [dict get $x *thing] }
    }]
 
@@ -1316,7 +1326,7 @@ menu .mMenu -tearoff 0
 proc setmenu {{what .mMenu}} {. config -menu $what}
 proc debug {} {
 	
-	put [object stream text j 1]
+put [object stream text j 1]
 
 }
 # Help->About Menu
