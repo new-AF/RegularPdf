@@ -985,55 +985,74 @@ proc ToolbarButton {args} {
 }
 proc header {{v 1.4}} {
 	set s "%PDF-$v"
-	return "[dict create *type header *thing $s *length [string length $s]"
+	return "[dict create *type header *thing $s *length [string length $s]]"
 }
 proc  objectdict { args } {
 
 set inner [dict create {*}$args ]
-set outer [dict create  *type dict *lengthEach 6 *length 6 *begin << *end >> *thing {}	*beginDelim [list { }] *endDelim [list { }] *cap {} *tail {} ] ; # lengthIndividual ; *length->cumulative length list
+set outer [dict create  *type dict *lengthEach 6 *begin {{<< }} *end {{ >>}} *thing {} *cap {} *tail {} ] ; # lengthIndividual ; *length->cumulative length list
         
 	
 dict set outer *thing $inner
 dict incr outer *length [string length $args]
-dict incr outer *lengthEach [string length $args]
         
 return $outer
 }
+proc objectstream { args } {
+lassign $args op args
+set x [objectdict /Length 0]
 
+dict set x *type stream
+dict set x *stream {}
+
+dict lappend x *begin [set a "stream\n"]
+dict lappend x *end [set b "\nendstream"]
+
+switch $op {
+ text {  dict lappend x *stream  {/Font1 32 Tf} BT {50 200 Td} "($args) Tj " ET }
+}
+set l [string length [join [dict get $x *stream]]$a$b]
+dict lappend x *lengthEach $l
+concat
+return $x
+}
 set OBJ 0 
 proc object { type args } {
 	
 set x [object$type {*}$args]
-set a "[incr $::OBJ] 0 obj"
-set b endobj
-set l [expr " [string length $a] + [string length $b] + 2"]
-#+ 2 for { } and { }
+set a "[incr $::OBJ] 0 obj\n"
+set b "\nendobj"
+set l [string length $a$b]
+
 dict lappend x *lengthEach $l
-dict lappend x *length [expr "[lindex [dict get $x *length] end] + $l"]
 	
-dict set x *begin [list $a [dict get $x *begin]]
-puts "=[dict get $x *begin]="
+dict set x *begin [list $a {*}[dict get $x *begin]]
+
 dict lappend x *end $b
-dict lappend x *beginDelim { }
-dict lappend x *endDelim { }
+
 dict lappend x *type object
 
-
 return $x
-} 
+}
+
 proc put {x} {
 	
 puts "[info level 0]"
 
 set a [dict get $x *begin]
-set a0 [dict get $x *beginDelim]
 set b [dict get $x *end]
-set b0 [dict get $x *endDelim]
-
-set a [string cat {*}[lmap i $a j $a0 {puts /$i$j/;subst "$i$j"}]]
-set b [string cat {*}[lmap i $b j $b0 {subst "$j$i"}]]
+set t [dict get $x *type]
+#set a [string cat {*}[lmap i $a j $a0 {puts /$i$j/;subst "$i$j"}]]
+#set b [string cat {*}[lmap i $b j $b0 {subst "$j$i"}]]
 #puts "B-> $b"
-set g "[dict get $x *cap]$a[dict get $x *thing]$b[dict get $x *tail]"
+
+set r [switch [lindex $t 0] {
+   stream { set p [lsearch $a <<*] ; set pEnd [lsearch $b *>>] ; set a [lreplace $a $p $p [lindex $a $p] [dict get $x *thing] "[lindex $b $pEnd] "] ; set b [lreplace $b $pEnd $pEnd] ; subst [dict get $x *stream]}
+   dict { subst [dict get $x *thing] }
+   }]
+
+# lengthEach[0] must be incremented; it's currently off by 1
+set g [join [concat [dict get $x *cap] $a $r $b [dict get $x *tail]] {}]
 
 puts =$g=
 	
@@ -1297,7 +1316,7 @@ menu .mMenu -tearoff 0
 proc setmenu {{what .mMenu}} {. config -menu $what}
 proc debug {} {
 	
-	put [object dict j 1]
+	put [object stream text j 1]
 
 }
 # Help->About Menu
