@@ -983,6 +983,11 @@ proc ToolbarButton {args} {
 	bind [lindex $args 0] <Leave> {buttonleave %W}
 	return $result
 }
+set OBJ 0
+set OBJTABLE [list]
+proc incrobj {{by 1}} {
+ return [incr $::OBJ $by]
+} 
 proc dictlincr {d key index  {by 1} } {
  upvar $d x
  set l [dict get $x $key]
@@ -991,16 +996,23 @@ proc dictlincr {d key index  {by 1} } {
 }
 proc header {{v 1.4}} {
 	set s "%PDF-$v"
-	return "[dict create *type header *thing $s *length [string length $s]]"
+	set x [dict create *type header *begin {{}} *end {"\n"} *header $s *lengthEach [string length $s] *cap {} *tail {}]
+ dict incr x *lengthEach
+ return $x
+}
+proc objectarray { args } {
+ set x [ dict create *type array *lengthEach [string length $args] *array $args *count [llength $args] *begin {[} *end {]} ]
+ dict incr x *lengthEach  2
+ return $x
 }
 proc  objectdict { args } {
 
-set inner [dict create {*}$args ]
+set inner [dict create {*}$args]
 set outer [dict create  *type dict *lengthEach 6 *begin {{<< }} *end {{ >>}} *thing {} *cap {} *tail {} ] ; # lengthIndividual ; *length->cumulative length list
         
 	
 dict set outer *thing $inner
-dict incr outer *length [string length $args]
+dict incr outer *lengthEach [string length $args]
         
 return $outer
 }
@@ -1015,18 +1027,18 @@ dict lappend x *begin [set a "stream\n"]
 dict lappend x *end [set b "\nendstream"]
 
 switch $op {
- text {  dict lappend x *stream  {/Font1 32 Tf} BT {50 200 Td} "($args) Tj " ET }
+ text {  dict lappend x *stream  {/Font1 32 Tf} BT {50 200 Td} "($args) Tj" ET }
 }
 set l [string length [join [dict get $x *stream]]$a$b]
 dict lappend x *lengthEach $l
 concat
 return $x
 }
-set OBJ 0 
+
 proc object { type args } {
 	
 set x [object$type {*}$args]
-set a "[incr $::OBJ] 0 obj\n"
+set a "[incrobj] 0 obj\n"
 set b "\nendobj"
 set l [string length $a$b]
 
@@ -1059,17 +1071,37 @@ set r [switch [lindex $t 0] {
    subst [list [join [dict get $x *stream] { }]]}
    
    dict { subst [dict get $x *thing] }
+   
    }]
 
 # lengthEach[0] must be incremented; it's currently off by 1
-set g [join [concat [dict get $x *cap] $a $r $b [dict get $x *tail]] {}]
+set x [join [concat [dict get $x *cap] $a $r $b [dict get $x *tail]] {}]
 
-puts =$g=
-	
+puts =$x=
+
+return $x
 }
-proc reftable { {update 1} {_return 1} } {
-	
-	
+proc objectpages {args} {
+ 
+ set x [objectdict /Type /Pages /MediaBox {[0 0 600 600]} /Resources "[incrobj] 0 R" /Kids "\[[incrobj] 0 R\]" /Count 1]
+ dict set x *type pages
+ dict append x *hasrefs 1 *refed 0
+ reftable x -replace
+ concat
+}
+proc objectpage {args} {
+ 
+ set x [objectdict /Type /Page /Parent "[incrobj] 0 R" /Contents "[incrobj] 0 R"]
+ dict set x *type page
+ dict append x *hasrefs 1 *refed 0
+ reftable x -replace
+ concat
+}
+proc reftable { d {replace 0} } {
+  upvar $d x
+  upvar ::OBJTABLE xx
+  set l [dict values $x {*0 R*}]
+  if {[llength $xx] == 0}
 }
  namespace eval save {
 	set filter {}
@@ -1326,7 +1358,8 @@ menu .mMenu -tearoff 0
 proc setmenu {{what .mMenu}} {. config -menu $what}
 proc debug {} {
 	
-put [object stream text j 1]
+objectpages
+#put [object stream text j 1]
 
 }
 # Help->About Menu
