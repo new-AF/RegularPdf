@@ -984,9 +984,9 @@ proc ToolbarButton {args} {
 	return $result
 }
 set OBJ 0
-set OBJTABLE [list]
+set OBJTABLE [dict create]
 proc incrobj {{by 1}} {
- return [incr $::OBJ $by]
+ return [incr ::OBJ $by]
 } 
 proc dictlincr {d key index  {by 1} } {
  upvar $d x
@@ -1001,19 +1001,32 @@ proc header {{v 1.4}} {
  return $x
 }
 proc objectarray { args } {
- set x [ dict create *type array *lengthEach [string length $args] *array $args *count [llength $args] *begin {[} *end {]} ]
- dict incr x *lengthEach  2
+
+set hasref [string equal [lindex $args end] -hasref] ; set ref {} ; set refshadow {}
+if {$hasref} { set args [lreplace $args end end] ; set ref [lsearch -all -glob $args \\**] ; set refshadow [lsearch -all -inline -glob $args \\**]}
+set refcount [llength $ref]
+
+set x [ dict create *type array *lengthEach [string length $args] *array $args *count [llength $args] *begin {[} *end {]} *ref $ref *refcount $refcount]
+dict incr x *lengthEach  2
+dict incr x *lengthEach  -[string length [join $refshadow {}]]
  return $x
 }
 proc  objectdict { args } {
 
+set hasref [string equal [lindex $args end] -hasref]
+
+set ref {} ; set refshadow {}
+if {$hasref} { set args [lreplace $args end end] ; set ref [lmap v [lsearch -glob -all $args \\**] {subst [lindex $args $v-1]}] ; set refshadow [lsearch -glob -all -inline $args \\**]  }
+set refcount [llength $ref]
+
 set inner [dict create {*}$args]
-set outer [dict create  *type dict *lengthEach 6 *begin {{<< }} *end {{ >>}} *thing {} *cap {} *tail {} ] ; # lengthIndividual ; *length->cumulative length list
-        
+set outer [dict create *type dict *lengthEach 6 *begin {{<< }} *end {{ >>}} *thing {} *cap {} *tail {} *ref $ref *refcount $refcount] ; # lengthIndividual ; *length->cumulative length list
+
 	
 dict set outer *thing $inner
 dict incr outer *lengthEach [string length $args]
-        
+dict incr outer *lengthEach -[string length [join $refshadow {}]]
+
 return $outer
 }
 proc objectstream { args } {
@@ -1027,6 +1040,7 @@ dict lappend x *begin [set a "stream\n"]
 dict lappend x *end [set b "\nendstream"]
 
 switch $op {
+ #foreach operation
  text {  dict lappend x *stream  {/Font1 32 Tf} BT {50 200 Td} "($args) Tj" ET }
 }
 set l [string length [join [dict get $x *stream]]$a$b]
@@ -1036,9 +1050,11 @@ return $x
 }
 
 proc object { type args } {
-	
+set ref [string equal [lindex $args end] -ref]
+if {$ref} { set args [lreplace $args end end]}
+
 set x [object$type {*}$args]
-set a "[incrobj] 0 obj\n"
+set a "[set c [incrobj]] 0 obj\n"
 set b "\nendobj"
 set l [string length $a$b]
 
@@ -1050,6 +1066,7 @@ dict lappend x *end $b
 
 dict lappend x *type object
 
+if {$ref} { dict append ::OBJTABLE $c $x ; return $c }
 return $x
 }
 
@@ -1070,6 +1087,7 @@ set r [switch [lindex $t 0] {
    set b [lreplace $b $pEnd $pEnd] ; dictlincr x *lengthEach 0 1
    subst [list [join [dict get $x *stream] { }]]}
    
+   pages -
    dict { subst [dict get $x *thing] }
    
    }]
@@ -1083,25 +1101,25 @@ return $x
 }
 proc objectpages {args} {
  
- set x [objectdict /Type /Pages /MediaBox {[0 0 600 600]} /Resources "[incrobj] 0 R" /Kids "\[[incrobj] 0 R\]" /Count 1]
+ set fdetails [object dict /Type /Font /Subtype /Type1 /Name /Font1 /BaseFont /Tahoma -ref]
+ set fname [object dict /Font1 *$fdetails -hasref -ref]
+ 
+ set x [objectdict /Type /Pages /MediaBox *[object array 0 0 600 600 -ref] /Resources *[object dict /Font *$fname -hasref -ref] /Count 1 -hasref]
+ #/Kids "\[[incrobj] 0 R\]"
  dict set x *type pages
- dict append x *hasrefs 1 *refed 0
- reftable x -replace
+ 
  concat
 }
 proc objectpage {args} {
  
- set x [objectdict /Type /Page /Parent "[incrobj] 0 R" /Contents "[incrobj] 0 R"]
+ #set x [objectdict /Type /Page /Parent "[incrobj] 0 R" /Contents "[incrobj] 0 R"]
  dict set x *type page
- dict append x *hasrefs 1 *refed 0
- reftable x -replace
+ dict append x *hasrefs 1 *replaced 0
+
  concat
 }
 proc reftable { d {replace 0} } {
-  upvar $d x
-  upvar ::OBJTABLE xx
-  set l [dict values $x {*0 R*}]
-  if {[llength $xx] == 0}
+  
 }
  namespace eval save {
 	set filter {}
