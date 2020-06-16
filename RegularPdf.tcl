@@ -4,37 +4,33 @@
 
 package require Tk
 package require TclOO
+
 wm title . RegularPDF
 wm geometry . "700x400+[expr [winfo vrootwidth .]/2]+[expr [winfo vrootheight .]/2]"
 panedwindow .pane -showhandle 1 -sashwidth 10 -sashpad 20 -sashrelief raised -handlepad 0
 place .pane -x 0 -y 0 -relwidth 1 -relheight 0.9
-
-
- frame .resize -bd 5 -relief groove
+frame .resize -bd 5 -relief groove
 # About Dialog Window
 proc buttonhover {w} {
 	$w config -relief ridge
 	
 }
+
 proc buttonleave {w} {
 	$w config -relief flat
 	
 }
-proc operation {operator args} {
-	
-	set target [lindex $args end]
-	set args [lreplace $args end end]
-	set count 0
-	foreach v $args { 
-	lset args $count [expr $v $operator $target]
-	incr count}
-	return $args
+
+
+proc operation {what args} {
+ if {[llength $args] == 1} {return $args}
+ set what [dict get {plus + minus - product * divide / raise **} $what]
+ set str [join $args $what]
+ set res [expr $str]
+ return $res
 }
-proc plus {args} { if [llength $args]==1 {set args [lindex $args 0]} ; return [operation + {*}$args] }
-proc minus {args} { if [llength $args]==1 {set args [lindex $args 0]}  ; return [operation - {*}$args] }
-proc product {args} { if [llength $args]==1 {set args [lindex $args 0]}  ; return [operation * {*}$args] }
-proc divide {args} { if [llength $args]==1 {set args [lindex $args 0]}  ; return [operation / {*}$args] }
-proc raise {args} { if [llength $args]==1 {set args [lindex $args 0]}  ; return [operation ** {*}$args] }
+
+
 toplevel .1top
 wm withdraw .1top
 wm title .1top About
@@ -46,6 +42,7 @@ label $z.2label -text "\u00a9 2020 Abdullah Fatota" -font {TkDefaultFont 10 ital
 foreach v {0 1 2} {
 pack $z.${v}label -side top -pady 10 -padx 2cm
 }
+
 variable cc .pane.main.canvas
 variable Font {TkDefaultFont} IconSave "\ud83d\udcbe" IconFolder "\ud83d\udcc2" IconBack "\u2190" IconReload "\u21bb" BlockCursor "\u25a0" IconFontIncrease "\ud83d\uddda" IconFontDecrease "\ud83d\udddb" IconPlus "\uff0b" IconMinus "\u2212" IconZoom "\ud83d\udd0e" IconSeethrough "\u239a" boldfont {-font {-weight bold}} eVar {} eDirCount {0} ePath {} fVar {} eHover {} sVar {} jVar {} pdff {} misc [dict create] cFont {} cSize {} cDim {} bCursor {} tIndex {} bIndex {} pi [expr asin(1)*2] paneY {} stackVar 0 lVar {} lId {} lPos {} lY {} tVar {} IconEnd "\ud83d\udccc"
 
@@ -985,6 +982,7 @@ proc ToolbarButton {args} {
 }
 set OBJ 0
 set OBJTABLE [dict create]
+
 proc incrobj {{by 1}} {
  return [incr ::OBJ $by]
 } 
@@ -997,9 +995,10 @@ proc dictlincr {d key index  {by 1} } {
 proc header {{v 1.4}} {
 	set s "%PDF-$v"
 	set x [dict create *type header *begin {{}} *end {"\n"} *header $s *lengthEach [string length $s] *cap {} *tail {}]
- dict incr x *lengthEach
- return $x
+ dict incr x *lengthEach 1
+	return $x
 }
+
 proc objectarray { args } {
 
 set hasref [string equal [lindex $args end] -hasref] ; set ref {} ; set refshadow {}
@@ -1011,27 +1010,21 @@ dict incr x *lengthEach  2
 dict incr x *lengthEach  -[string length [join $refshadow {}]]
  return $x
 }
-proc  objectdict { args } {
+proc objectdict { things {add {}} } {
 
-set hasref [string equal [lindex $args end] -hasref]
-
-set ref {} ; set refshadow {}
-if {$hasref} { set args [lreplace $args end end] ; set ref [lmap v [lsearch -glob -all $args \\**] {subst [lindex $args $v-1]}] ; set refshadow [lsearch -glob -all -inline $args \\**]  }
-set refcount [llength $ref]
-
-set inner [dict create {*}$args]
-set outer [dict create *type dict *lengthEach 6 *begin {{<< }} *end {{ >>}} *thing {} *cap {} *tail {} *ref $ref *refcount $refcount] ; # lengthIndividual ; *length->cumulative length list
-
+set inner [dict create {*}$things]
+set outer [dict create *type dict *lengthEach 6 *begin {{<< }} *end {{ >>}} *thing {} *cap {} *tail {} *ref {} *refAlt {} *refcount 0]
+set outer [dict merge $outer $add]
 	
 dict set outer *thing $inner
-dict incr outer *lengthEach [string length $args]
-dict incr outer *lengthEach -[string length [join $refshadow {}]]
-
+dict incr outer *lengthEach [string length [dict get $outer *thing]]
+concat
 return $outer
 }
-proc objectstream { args } {
-lassign $args op args
-set x [objectdict /Length 0]
+proc objectstream { things {add {}} } {
+lassign $things op things
+
+set x [objectdict {/Length 0}]
 
 dict set x *type stream
 dict set x *stream {}
@@ -1041,7 +1034,7 @@ dict lappend x *end [set b "\nendstream"]
 
 switch $op {
  #foreach operation
- text {  dict lappend x *stream  {/Font1 32 Tf} BT {50 200 Td} "($args) Tj" ET }
+ text {  dict set x *stream  {{/Font1 32 Tf} BT {50 200 Td} "($args) Tj" ET} }
 }
 set l [string length [join [dict get $x *stream]]$a$b]
 dict lappend x *lengthEach $l
@@ -1049,79 +1042,65 @@ concat
 return $x
 }
 
-proc object { type args } {
-set ref [string equal [lindex $args end] -ref]
-if {$ref} { set args [lreplace $args end end]}
-
-set x [object$type {*}$args]
-set a "[set c [incrobj]] 0 obj\n"
-set b "\nendobj"
-set l [string length $a$b]
-
-dict lappend x *lengthEach $l
-	
-dict set x *begin [list $a {*}[dict get $x *begin]]
-
-dict lappend x *end $b
-
-dict lappend x *type object
-
-if {$ref} { dict append ::OBJTABLE $c $x ; return $c }
-return $x
-}
-
-proc put {x} {
-	
-puts "[info level 0]"
-
-set a [dict get $x *begin]
-set b [dict get $x *end]
-set t [dict get $x *type]
-#set a [string cat {*}[lmap i $a j $a0 {puts /$i$j/;subst "$i$j"}]]
-#set b [string cat {*}[lmap i $b j $b0 {subst "$j$i"}]]
-#puts "B-> $b"
-
-set r [switch [lindex $t 0] {
-   stream { set p [lsearch $a <<*] ; set pEnd [lsearch $b *>>]
-   set a [lreplace $a $p $p [lindex $a $p] [dict get $x *thing] "[lindex $b $pEnd] "]
-   set b [lreplace $b $pEnd $pEnd] ; dictlincr x *lengthEach 0 1
-   subst [list [join [dict get $x *stream] { }]]}
-   
-   pages -
-   dict { subst [dict get $x *thing] }
-   
-   }]
-
-# lengthEach[0] must be incremented; it's currently off by 1
-set x [join [concat [dict get $x *cap] $a $r $b [dict get $x *tail]] {}]
-
-puts =$x=
-
-return $x
-}
 proc objectpages {args} {
  
  set fdetails [object dict /Type /Font /Subtype /Type1 /Name /Font1 /BaseFont /Tahoma -ref]
- set fname [object dict /Font1 *$fdetails -hasref -ref]
+ set fname [object dict /Font1 *$fdetails {-hasref -ref}]
  
- set x [objectdict /Type /Pages /MediaBox *[object array 0 0 600 600 -ref] /Resources *[object dict /Font *$fname -hasref -ref] /Count 1 -hasref]
- #/Kids "\[[incrobj] 0 R\]"
- dict set x *type pages
+lassign [object dict /Type /Pages /MediaBox *[object array 0 0 600 600 -ref] /Resources *[object dict /Font *$fname {-hasref -ref}] /Kids *[object array -ref] /Count 0 {-hasref -ref -give}] x c
+ 
+ dict set x *type [lreplace [dict get $x *type] 0 0 pages]
+ 
+ lassign [object page /Parent *$c /Contents *[object stream text TEST {-ref -noobject}] {-hasref -ref -give}] x2 c2
  
  concat
 }
 proc objectpage {args} {
  
- #set x [objectdict /Type /Page /Parent "[incrobj] 0 R" /Contents "[incrobj] 0 R"]
+ #dirty way of doing it.
+	set x [object dict  ]
+ set x [dict create /Type /Page /Parent null /Contents null]
+	
+ set x [dict merge $x [object dict {*}$args ] ]
+ 
+ set x [objectdict {*}$dl]
  dict set x *type page
- dict append x *hasrefs 1 *replaced 0
+ 
 
  concat
 }
-proc reftable { d {replace 0} } {
-  
+proc object { what args } {
+
+if [string match -?* [lindex $args end 0] ]  { set end [lindex $args end] ;  set args [lreplace $args end end] } else { set end [list] }
+foreach v {ref hasref give noobject} {set $v 0}
+foreach v $end {set [string range $v 1 end] 1}
+
+#add[itional] Dictionary, to store miscellaneous info.
+set add [dict create]
+
+if $hasref {set t [lsearch -glob -all $args \\**] ; dict append add *refAlt $t ;  dict append add *refcount [llength $t ] ; dict append add *ref [lmap v $t { subst [lindex $args $v-1] }]  }
+
+
+set x [object$what $args $add ]
+
+if $noobject { if $ref {set c [incrobj]} } else {
+set a "[set c [incrobj]] 0 obj\n" ; set b "\nendobj" ;
+
+dict lappend x *lengthEach [string length $a$b]
+dict set x *begin [list $a {*}[dict get $x *begin]]
+dict lappend x *end $b
+dict lappend x *type object
 }
- namespace eval save {
+concat
+if $give {
+		if $ref { dict append ::OBJTABLE $c $x ; return [list $x $c]
+		} else { return $x }
+	} elseif $ref {return $c} else { return $x }
+	
+}
+
+
+namespace eval save {
 	set filter {}
 	set exts {{"All Files" *} {"PostScript Files" {*.ps}}}
 	 
@@ -1210,6 +1189,67 @@ proc reftable { d {replace 0} } {
 	}
 }
 
+
+
+proc put {x} {
+	
+puts "[info level 0]"
+
+set a [dict get $x *begin]
+set b [dict get $x *end]
+set t [dict get $x *type]
+#set a [string cat {*}[lmap i $a j $a0 {puts /$i$j/;subst "$i$j"}]]
+#set b [string cat {*}[lmap i $b j $b0 {subst "$j$i"}]]
+#puts "B-> $b"
+
+set r [switch [lindex $t 0] {
+   stream { set p [lsearch $a <<*] ; set pEnd [lsearch $b *>>]
+   set a [lreplace $a $p $p [lindex $a $p] [dict get $x *thing] "[lindex $b $pEnd] "]
+   set b [lreplace $b $pEnd $pEnd] ; dictlincr x *lengthEach 0 1
+   subst [list [join [dict get $x *stream] { }]]}
+   
+   pages -
+   dict { subst [dict get $x *thing] }
+   
+   }]
+
+# lengthEach[0] must be incremented; it's currently off by 1
+set x [join [concat [dict get $x *cap] $a $r $b [dict get $x *tail]] {}]
+
+puts =$x=
+
+return $x
+}
+
+proc reftable { d {replace 0} } {
+  
+}
+
+proc PDF {what args} {
+		switch $what {
+			create {
+				set count 0
+				set s [lmap v $args {
+					
+					if [string match -?* $v]  { subst [string range $v 1 end] } else {break}
+					incr count
+					} ]
+				set args [lrange $args $count end]
+				foreach v {hasref ref give} { set $v 0 }
+				foreach v $s { set $v 1 }
+				lassign $args type $args
+				if $ref []
+				set x [dict create *typeEach {} *thing {} *lengthEach [list] *begin {} *end {} *refcount 0 *ref {} *refAlt {} *middle {}]
+				switch $type {
+					dict {
+						dict set x *type dict
+						dict set x *thing [dict create {*}$args]
+					} ; # End of switch -> create -> switch -> dict
+				} ; # End of switch -> create -> switch
+			} ; # End of switch -> create
+		} ; # End of switch
+	
+} ; # End of PDF proc
 
 # ***Toolbar*** #
 frame .toolbar -relief flat -bd 5
@@ -1329,7 +1369,9 @@ proc set_statusbar {what} {
 # Bind Things
 $c config -command get_items
 $b config -command change_dir
-bind $e <Visibility> { "[$c cget -command]" [file normalize ~/TestPDF]  ; Adjustf}
+bind $e <Visibility> {
+ #break ; "[$c cget -command]" [file normalize ~/TestPDF]  ; Adjustf
+ }
 bind $e <<ListboxSelect>> {list_select %W}
 bind $b <Motion> { set_statusbar [from_ns Tooltip %W] }
 bind $c <Motion> { set_statusbar [from_ns Tooltip %W] }
@@ -1376,8 +1418,8 @@ menu .mMenu -tearoff 0
 proc setmenu {{what .mMenu}} {. config -menu $what}
 proc debug {} {
 	
-objectpages
-#put [object stream text j 1]
+#objectpages
+put [object stream text ABC 1]
 
 }
 # Help->About Menu
