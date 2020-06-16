@@ -974,7 +974,7 @@ pack $g -side left -fill y
 
 # ***Toolbar Buttons*** #
 proc ToolbarButton {args} {
-	puts "** args are -> $args"
+	# puts "** args are -> $args"
 	set result [button {*}$args -relief flat]
 	bind [lindex $args 0] <Enter> {buttonhover %W}
 	bind [lindex $args 0] <Leave> {buttonleave %W}
@@ -1033,7 +1033,7 @@ dict lappend x *begin [set a "stream\n"]
 dict lappend x *end [set b "\nendstream"]
 
 switch $op {
- #foreach operation
+
  text {  dict set x *stream  {{/Font1 32 Tf} BT {50 200 Td} "($args) Tj" ET} }
 }
 set l [string length [join [dict get $x *stream]]$a$b]
@@ -1226,30 +1226,54 @@ proc reftable { d {replace 0} } {
 }
 
 proc PDF {what args} {
+	
 		switch $what {
 			create {
 				set count 0
-				set s [lmap v $args {
+				set s [lmap v $args { if [string match -?* $v]  {incr count ; subst [string range $v 1 end] } else {break}
 					
-					if [string match -?* $v]  { subst [string range $v 1 end] } else {break}
-					incr count
 					} ]
 				set args [lrange $args $count end]
-				foreach v {hasref ref give} { set $v 0 }
+				foreach v {hasref ref Ret} { set $v 0 }
 				foreach v $s { set $v 1 }
-				lassign $args type $args
-				if $ref []
-				set x [dict create *typeEach {} *thing {} *lengthEach [list] *begin {} *end {} *refcount 0 *ref {} *refAlt {} *middle {}]
+				lassign $args type
+				set args [lrange $args 1 end]
+				
+				set x [dict create *typeEach {} *thing {} *lengthEach 0 *begin {} *end {} *refcount 0 *ref {} *refAlt {} *middle {}]
+				if $hasref { set t [lsearch -glob -all $args \\**] ; dict set x *refAlt $t ;  dict set x *refcount [llength $t ] ; dict set x *ref [lmap v $t { subst [lindex $args $v-1] ; dict incr x *lengthEach -[string length $v] }]  }
+				
 				switch $type {
 					dict {
 						dict set x *type dict
 						dict set x *thing [dict create {*}$args]
-					} ; # End of switch -> create -> switch -> dict
-				} ; # End of switch -> create -> switch
-			} ; # End of switch -> create
-		} ; # End of switch
+						dict set x *begin {<< }
+						dict set x *end { >>}
+						dict incr x *lengthEach [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
+					} array {
+						dict set x *type array
+						dict set x *thing [list {*}args]
+						dict set x *begin {[}
+						dict set x *end {]}
+						dict append *count [llength [dict get $x *thing]]
+						dict incr x *lengthEach [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
+					} pages {
+						set font1 [PDF create -ref dict /Type /Font /Subtype /Type1 /Name /Font1 /BaseFont /Tahoma]
+						set font2 [PDF create -hasref -ref dict /Font1 *$font1]
+						set font3 [PDF create -ref -hasref dict /Font *$font2]
+						set array1 [PDF create -ref array 0 0 400 400]
+						set array2 [PDF create -ref array]
+						dict set x *type pages
+						dict set x *thing [dict merge [dict get $x *thing] [dict create /MediaBox *$array1 /Resources *$font3 /Kids *$array2 /Count 0] ]
+						
+					} 
+				}
+				if $ref {  dict append ::OBJTABLE [set c [incrobj] ] $x }
+				if $Ret { if $ref { return [list $x $c ] } else {return $x} } elseif $ref { return $c } else { return $x }
+			} 
+		} 
 	
-} ; # End of PDF proc
+} 
+
 
 # ***Toolbar*** #
 frame .toolbar -relief flat -bd 5
@@ -1410,7 +1434,7 @@ proc get_center {win {before 1}} {
 
 # Pane additions
 foreach v "$a .pane.main .pane.tabs" {.pane add $v -sticky nswe -stretch always
-puts "**$v**"
+#puts "**$v**"
 }
 
 # Root Menu
@@ -1419,7 +1443,7 @@ proc setmenu {{what .mMenu}} {. config -menu $what}
 proc debug {} {
 	
 #objectpages
-put [object stream text ABC 1]
+PDF create pages
 
 }
 # Help->About Menu
