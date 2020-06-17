@@ -1266,27 +1266,42 @@ proc PDF {what args} {
 						dict set x *type stream
 						dict set x *begin "stream\n"
 						dict set x *end "\nendstream"
+						dict set x *thing [dict create]
+						dict append x *count 0
+						dict append x *streammiddle "\n"
+						
 						lassign $args type
 						set args [lrange $args 1 end]
 						set got [new_args [concat $args -XDefaults {{Tesst 50 200 /Font1 32}}] -text -x -y -fontname -fontsize ]
 						lassign $got text tx ty fontn fonts
+						
 						switch $type {
 							text {
-								dict set x *thing [list [list $fontn $fonts Tf] [list BT] [list $tx $ty Td] [list ($text) Tj ] ]
+								dict incr x *count
+								dict append x child_text[dict get $x *count] [list [list $fontn $fonts Tf] [list BT] [list $tx $ty Td] [list ($text) Tj ] ]
 							}
 						}
-						dict incr x *length [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
-						dict lappend x *type text
-					} pages {
+						dict incr x *length [string length [join [join [dict values [dict filter $x key child_*] ] [dict get $x *streammiddle] ] { }]  ]
+						#dict incr x *length [ expr {([dict get $x *count]-1)} ]
+						dict incr x *length [ string length [dict get $x *begin][dict get $x *end] ]
+						} pages {
 						set font1 [PDF create -ref dict /Type /Font /Subtype /Type1 /Name /Font1 /BaseFont /Tahoma]
 						set font2 [PDF create -hasref -ref dict /Font1 *$font1]
 						set font3 [PDF create -ref -hasref dict /Font *$font2]
 						set array1 [PDF create -ref array 0 0 400 400]
 						set array2 [PDF create -ref array]
-						dict set x *type pages
+						
 						set x [PDF create -hasref dict /MediaBox *$array1 /Resources *$font3 /Kids *$array2 /Count 0]
+						dict set x *type pages
 						concat
-					} 
+					} page {
+						set got [new_args [concat $args -XDefaults {{null null}}] -parent -contents]
+						lassign $got pa co
+						set x [PDF create dict /Type /Page /Parent $pa /Contents $co]
+						dict set x *type page
+						
+						concat
+					}
 				}
 				if $ref {  dict append ::OBJTABLE [set c [incrobj] ] $x }
 				if $Ret { if $ref { return [list $x $c ] } else {return $x} } elseif $ref { return $c } else { return $x }
@@ -1464,8 +1479,8 @@ proc setmenu {{what .mMenu}} {. config -menu $what}
 proc debug {} {
 	
 #objectpages
-PDF create stream text -text Messages -x 0
-
+#PDF create stream text -text Messages -x 0
+PDF create page
 }
 # Help->About Menu
 menu .mMenu.mHelp -tearoff 0
