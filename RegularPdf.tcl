@@ -1224,21 +1224,27 @@ return $x
 proc reftable { d {replace 0} } {
   
 }
-
+set Onn 1
 proc PDF {what args} {
 	
 		switch $what {
 			create {
-				variable count 0  s [list]
+				set count 0
+				set s [list]
+				set hasref 0
+				set ref 0
+				set Ret 0
+				set asobject 0
 				foreach v $args {
 					if [string match -?* $v]  {incr count ; lappend s [string range $v 1 end] } else {break}
 				}
 				set args [lrange $args $count end]
-				variable hasref 0 ref 0 Ret 0
 				foreach v $s { set $v 1 }
+				
 				lassign $args type
 				set args [lrange $args 1 end]
 				
+				#if {$::Onn} {set ARCANE ARCANE ; set ::Onn 0 } else {unset ARCANE}
 				set x [dict create *type {} *thing {} *length 0 *begin {} *end {} *refcount 0 *ref {} *middle {}]
 				if $hasref {
 					set i [lsearch -glob -all $args \\**]
@@ -1298,12 +1304,20 @@ proc PDF {what args} {
 						set got [new_args [concat $args -XDefaults {{null null}}] -parent -contents]
 						lassign $got pa co
 						set x [PDF create dict /Type /Page /Parent $pa /Contents $co]
-						dict set x *type page
-						
+						dict set x *type page	
 						concat
 					}
 				}
-				if $ref {  dict append ::OBJTABLE [set c [incrobj] ] $x }
+				if $asobject {
+					set c [incrobj]
+					dict lappend x *type object
+					dict lappend x *begin [set asa "$c 0 obj\n"]
+					dict set x *begin [lreverse [dict get $x *begin]]
+					dict lappend x *end [set asb "endobj\n"]
+					dict incr x *length [string length $asa$asb]
+					concat
+				}
+				if $ref { if ![info exists c] { set c [incrobj] } ; dict append ::OBJTABLE $c $x }
 				if $Ret { if $ref { return [list $x $c ] } else {return $x} } elseif $ref { return $c } else { return $x }
 			} 
 		} 
@@ -1480,7 +1494,7 @@ proc debug {} {
 	
 #objectpages
 #PDF create stream text -text Messages -x 0
-PDF create page
+PDF create -asobject page
 }
 # Help->About Menu
 menu .mMenu.mHelp -tearoff 0
