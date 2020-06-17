@@ -1324,7 +1324,8 @@ proc PDF {what args} {
 				}
 				if $ref { if ![info exists c] { set c [incrobj] } ; dict append ::OBJTABLE $c $x }
 				if $Ret { if $ref { return [list $x $c ] } else {return $x} } elseif $ref { return $c } else { return $x }
-			} update {
+			}
+			update {
 				set update_later 0
 				lassign $args target_name
 				set args [lrange $args 1 end]
@@ -1353,6 +1354,22 @@ proc PDF {what args} {
 						}
 				}
 				
+			}
+			reftable {
+				set header "%PDF-1.4\n"
+				set offset [string length $header]
+				set rows [list]
+				
+				dict for {key val} $::OBJTABLE {
+					lappend rows "[format %010d $offset] 00000 n"
+					incr offset [dict get $val *length]
+				}
+			puts [string repeat /*\\ 5]
+			foreach v $rows {
+				puts $v
+			}
+			puts [string repeat /*\\ 5]
+			concat
 			}
 		} 
 	
@@ -1532,6 +1549,7 @@ set x [PDF create -asobject -ref page]
 set y [PDF create -asobject -ref pages]
 set z [PDF create -asobject -ref stream text -text HELLO -fontname Calibri -fontsize 12]
 PDF update -hasref x /Parent *$y /Contents *$z
+PDF reftable
 }
 # Help->About Menu
 menu .mMenu.mHelp -tearoff 0
