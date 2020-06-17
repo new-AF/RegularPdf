@@ -1243,7 +1243,9 @@ proc PDF {what args} {
 	if $hasref {
 			set i [lsearch -glob -all $args \\**]
 			set ia [lmap v $i { subst [lindex $args $v] }]
+			set ia [lmap v $ia {subst {[string trimleft $v *] 0 R} } ]
 			set ib [lmap v $i { subst [lindex $args $v-1] }]
+			foreach v $i vv $ia {lset args $v $vv}
 		}
 		
 		switch $what {
@@ -1252,31 +1254,36 @@ proc PDF {what args} {
 				lassign $args type
 				set args [lrange $args 1 end]
 				
-				set x [dict create *type {} *thing {} *length 0 *begin {} *end {} *refcount 0 *ref {} *middle {}]
+				set x [dict create *type [list] *thing {} *length 0 *begin [list] *end [list] *refcount 0 *ref [list] ]
 				
 				if $hasref {
 					dict set x *refcount [llength $i]
 					dict set x *ref $ib
-					dict incr x *length  -[string length [join $ia {} ]] }
+					#dict incr x *length  -[string length [join $ia {} ]]
+					}
 				
 				switch $type {
 					dict {
 						dict set x *type dict
 						dict set x *thing [dict create {*}$args]
-						dict set x *begin {<< }
-						dict set x *end { >>}
-						dict incr x *length [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
+						dict lappend x *begin {<< }
+						dict lappend x *end { >>}
+						dict incr x *length [string length [join [dict get $x *thing] ]]
+						dict incr x *length [string length [join [dict get $x *begin] {}]]
+						dict incr x *length [string length [join [dict get $x *end] {}]]
 					} array {
 						dict set x *type array
 						dict set x *thing [list {*}$args]
-						dict set x *begin {[}
-						dict set x *end {]}
+						dict lappend x *begin \[
+						dict lappend x *end \]
 						dict append x *count [llength [dict get $x *thing]]
-						dict incr x *length [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
+						dict incr x *length [string length [join [dict get $x *thing] ]]
+						dict incr x *length [string length [join [dict get $x *begin] {}]]
+						dict incr x *length [string length [join [dict get $x *end] {}]]
 					} stream {
 						dict set x *type stream
-						dict set x *begin "stream\n"
-						dict set x *end "\nendstream"
+						dict append x *begin "stream\n"
+						dict append x *end "\nendstream"
 						dict set x *thing [dict create]
 						dict append x *count 0
 						dict append x *streammiddle "\n"
@@ -1293,8 +1300,8 @@ proc PDF {what args} {
 							}
 						}
 						dict incr x *length [string length [join [join [dict values [dict filter $x key child_*] ] [dict get $x *streammiddle] ] { }]  ]
-						#dict incr x *length [ expr {([dict get $x *count]-1)} ]
-						dict incr x *length [ string length [dict get $x *begin][dict get $x *end] ]
+						dict incr x *length [string length [join [dict get $x *begin] {}]]
+						dict incr x *length [string length [join [dict get $x *end] {}]]
 						} pages {
 						set font1 [PDF create -ref dict /Type /Font /Subtype /Type1 /Name /Font1 /BaseFont /Tahoma]
 						set font2 [PDF create -hasref -ref dict /Font1 *$font1]
@@ -1349,7 +1356,7 @@ proc PDF {what args} {
 						incr old_length [string length [join $ia {}] ]
 						dict incr target *length $old_length
 						if $hasref { dict set target *ref $ib  ;   dict set target *refcount [llength $ib]}
-						if $update_later { dict set ::OBJTABLE $n $target  }
+						if $update_later { dict set ::OBJTABLE $n $target ; set target $n }
 						concat
 						}
 				}
@@ -1548,8 +1555,10 @@ proc debug {} {
 set x [PDF create -asobject -ref page]
 set y [PDF create -asobject -ref pages]
 set z [PDF create -asobject -ref stream text -text HELLO -fontname Calibri -fontsize 12]
+PDF create -hasref dict /Len *8
 PDF update -hasref x /Parent *$y /Contents *$z
 PDF reftable
+concat
 }
 # Help->About Menu
 menu .mMenu.mHelp -tearoff 0
