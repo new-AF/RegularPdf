@@ -1224,32 +1224,37 @@ return $x
 proc reftable { d {replace 0} } {
   
 }
-set Onn 1
+
 proc PDF {what args} {
 	
+	set count 0
+	set s [list]
+	set hasref 0
+	set ref 0
+	set Ret 0
+	set asobject 0
+	
+	foreach v $args {
+		if [string match -?* $v]  {incr count ; lappend s [string range $v 1 end] } else {break}
+	}
+	set args [lrange $args $count end]
+	foreach v $s { set $v 1 }
+		
+	if $hasref {
+			set i [lsearch -glob -all $args \\**]
+			set ia [lmap v $i { subst [lindex $args $v] }]
+			set ib [lmap v $i { subst [lindex $args $v-1] }]
+		}
+		
 		switch $what {
 			create {
-				set count 0
-				set s [list]
-				set hasref 0
-				set ref 0
-				set Ret 0
-				set asobject 0
-				foreach v $args {
-					if [string match -?* $v]  {incr count ; lappend s [string range $v 1 end] } else {break}
-				}
-				set args [lrange $args $count end]
-				foreach v $s { set $v 1 }
-				
+
 				lassign $args type
 				set args [lrange $args 1 end]
 				
-				#if {$::Onn} {set ARCANE ARCANE ; set ::Onn 0 } else {unset ARCANE}
 				set x [dict create *type {} *thing {} *length 0 *begin {} *end {} *refcount 0 *ref {} *middle {}]
+				
 				if $hasref {
-					set i [lsearch -glob -all $args \\**]
-					set ia [lmap v $i { subst [lindex $args $v] }]
-					set ib [lmap v $i { subst [lindex $args $v-1] }]
 					dict set x *refcount [llength $i]
 					dict set x *ref $ib
 					dict incr x *length  -[string length [join $ia {} ]] }
@@ -1319,7 +1324,36 @@ proc PDF {what args} {
 				}
 				if $ref { if ![info exists c] { set c [incrobj] } ; dict append ::OBJTABLE $c $x }
 				if $Ret { if $ref { return [list $x $c ] } else {return $x} } elseif $ref { return $c } else { return $x }
-			} 
+			} update {
+				set update_later 0
+				lassign $args target_name
+				set args [lrange $args 1 end]
+				
+				upvar $target_name target
+				if [string is digit $target] {
+					set n $target
+					set target [dict get $::OBJTABLE $n ]
+					set update_later 1
+					}
+				lassign [dict get $target *type] t1 t2
+				switch $t1 {
+					page -
+					pages -
+					dict {
+						set old_length 0
+						foreach v $ib {
+							incr old_length -[string length [dict get $target *thing $v]]
+						}
+						dict set target *thing [dict merge [dict get $target *thing] $args ]
+						incr old_length [string length [join $ia {}] ]
+						dict incr target *length $old_length
+						if $hasref { dict set target *ref $ib  ;   dict set target *refcount [llength $ib]}
+						if $update_later { dict set ::OBJTABLE $n $target  }
+						concat
+						}
+				}
+				
+			}
 		} 
 	
 } 
@@ -1494,7 +1528,10 @@ proc debug {} {
 	
 #objectpages
 #PDF create stream text -text Messages -x 0
-PDF create -asobject page
+set x [PDF create -asobject -ref page]
+set y [PDF create -asobject -ref pages]
+set z [PDF create -asobject -ref stream text -text HELLO -fontname Calibri -fontsize 12]
+PDF update -hasref x /Parent *$y /Contents *$z
 }
 # Help->About Menu
 menu .mMenu.mHelp -tearoff 0
