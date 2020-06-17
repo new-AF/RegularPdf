@@ -1229,18 +1229,24 @@ proc PDF {what args} {
 	
 		switch $what {
 			create {
-				set count 0
-				set s [lmap v $args { if [string match -?* $v]  {incr count ; subst [string range $v 1 end] } else {break}
-					
-					} ]
+				variable count 0  s [list]
+				foreach v $args {
+					if [string match -?* $v]  {incr count ; lappend s [string range $v 1 end] } else {break}
+				}
 				set args [lrange $args $count end]
-				foreach v {hasref ref Ret} { set $v 0 }
+				variable hasref 0 ref 0 Ret 0
 				foreach v $s { set $v 1 }
 				lassign $args type
 				set args [lrange $args 1 end]
 				
-				set x [dict create *typeEach {} *thing {} *lengthEach 0 *begin {} *end {} *refcount 0 *ref {} *refAlt {} *middle {}]
-				if $hasref { set t [lsearch -glob -all $args \\**] ; dict set x *refAlt $t ;  dict set x *refcount [llength $t ] ; dict set x *ref [lmap v $t { subst [lindex $args $v-1] ; dict incr x *lengthEach -[string length $v] }]  }
+				set x [dict create *type {} *thing {} *length 0 *begin {} *end {} *refcount 0 *ref {} *middle {}]
+				if $hasref {
+					set i [lsearch -glob -all $args \\**]
+					set ia [lmap v $i { subst [lindex $args $v] }]
+					set ib [lmap v $i { subst [lindex $args $v-1] }]
+					dict set x *refcount [llength $i]
+					dict set x *ref $ib
+					dict incr x *length  -[string length [join $ia {} ]] }
 				
 				switch $type {
 					dict {
@@ -1248,14 +1254,14 @@ proc PDF {what args} {
 						dict set x *thing [dict create {*}$args]
 						dict set x *begin {<< }
 						dict set x *end { >>}
-						dict incr x *lengthEach [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
+						dict incr x *length [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
 					} array {
 						dict set x *type array
-						dict set x *thing [list {*}args]
+						dict set x *thing [list {*}$args]
 						dict set x *begin {[}
 						dict set x *end {]}
-						dict append *count [llength [dict get $x *thing]]
-						dict incr x *lengthEach [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
+						dict append x *count [llength [dict get $x *thing]]
+						dict incr x *length [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
 					} pages {
 						set font1 [PDF create -ref dict /Type /Font /Subtype /Type1 /Name /Font1 /BaseFont /Tahoma]
 						set font2 [PDF create -hasref -ref dict /Font1 *$font1]
@@ -1263,8 +1269,8 @@ proc PDF {what args} {
 						set array1 [PDF create -ref array 0 0 400 400]
 						set array2 [PDF create -ref array]
 						dict set x *type pages
-						dict set x *thing [dict merge [dict get $x *thing] [dict create /MediaBox *$array1 /Resources *$font3 /Kids *$array2 /Count 0] ]
-						
+						set x [PDF create -hasref dict /MediaBox *$array1 /Resources *$font3 /Kids *$array2 /Count 0]
+						concat
 					} 
 				}
 				if $ref {  dict append ::OBJTABLE [set c [incrobj] ] $x }
