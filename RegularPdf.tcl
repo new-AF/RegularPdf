@@ -1262,6 +1262,21 @@ proc PDF {what args} {
 						dict set x *end {]}
 						dict append x *count [llength [dict get $x *thing]]
 						dict incr x *length [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
+					} stream {
+						dict set x *type stream
+						dict set x *begin "stream\n"
+						dict set x *end "\nendstream"
+						lassign $args type
+						set args [lrange $args 1 end]
+						set got [new_args [concat $args -XDefaults {{Tesst 50 200 /Font1 32}}] -text -x -y -fontname -fontsize ]
+						lassign $got text tx ty fontn fonts
+						switch $type {
+							text {
+								dict set x *thing [list [list $fontn $fonts Tf] [list BT] [list $tx $ty Td] [list ($text) Tj ] ]
+							}
+						}
+						dict incr x *length [ string length [dict get $x *begin][dict get $x *end][dict get $x *thing] ]
+						dict lappend x *type text
 					} pages {
 						set font1 [PDF create -ref dict /Type /Font /Subtype /Type1 /Name /Font1 /BaseFont /Tahoma]
 						set font2 [PDF create -hasref -ref dict /Font1 *$font1]
@@ -1449,7 +1464,7 @@ proc setmenu {{what .mMenu}} {. config -menu $what}
 proc debug {} {
 	
 #objectpages
-PDF create pages
+PDF create stream text -text Messages -x 0
 
 }
 # Help->About Menu
