@@ -30,6 +30,13 @@ proc operation {what args} {
  return $res
 }
 
+proc range {from to} {
+	set from [expr { $from - 1}] 
+	set to [expr  $to ] 
+	set str [lrepeat [expr { $to - $from }] x ]
+	set lst [lmap v $str { subst [incr from] }]
+	return $lst
+}
 
 toplevel .1top
 wm withdraw .1top
@@ -1309,7 +1316,7 @@ proc PDF {what args} {
 						set array1 [PDF create -ref array 0 0 400 400]
 						set array2 [PDF create -ref array]
 						
-						set x [PDF create -hasref dict /MediaBox *$array1 /Resources *$font3 /Kids *$array2 /Count 0]
+						set x [PDF create -hasref dict /Type /Pages /MediaBox *$array1 /Resources *$font3 /Kids *$array2 /Count 0]
 						dict set x *type pages
 						concat
 					} page {
@@ -1320,24 +1327,22 @@ proc PDF {what args} {
 						concat
 					}
 				}
-				if $asobject {
+				
+				if $ref {
 					set c [incrobj]
 					dict lappend x *type object
 					dict lappend x *begin [set asa "$c 0 obj\n"]
 					dict set x *begin [lreverse [dict get $x *begin]]
 					dict lappend x *end [set asb "\nendobj"]
 					dict incr x *length [string length $asa$asb]
-					concat
-				}
-				if $ref { if ![info exists c] { set c [incrobj] } ; dict append ::OBJTABLE $c $x }
+					dict append ::OBJTABLE $c $x }
 				if $Ret { if $ref { return [list $x $c ] } else {return $x} } elseif $ref { return $c } else { return $x }
 			}
 			update {
 				set update_later 0
-				lassign $args target_name
+				if [string is alpha [lindex $args 0]] { upvar [lindex $args 0] target } else {set target [lindex $args 0] }
 				set args [lrange $args 1 end]
 				
-				upvar $target_name target
 				if [string is digit $target] {
 					set n $target
 					set target [dict get $::OBJTABLE $n ]
@@ -1349,17 +1354,34 @@ proc PDF {what args} {
 					pages -
 					dict {
 						set old_length 0
-						foreach v $ib {
-							incr old_length -[string length [dict get $target *thing $v]]
+						foreach v [dict keys $args] vv [dict values $args] {
+							if [dict exists $target *thing $v] {
+								incr old_length -[string length [dict get $target *thing $v]] 
+							} else {
+								dict set target *thing $v $vv
+							}
+						
 						}
 						dict set target *thing [dict merge [dict get $target *thing] $args ]
-						incr old_length [string length [join $ia {}] ]
+						#incr old_length [string length [join $ia {}] ]
+						incr old_length [string length [join [dict values $args] {}]]
 						dict incr target *length $old_length
-						if $hasref { dict set target *ref $ib  ;   dict set target *refcount [llength $ib]}
-						if $update_later { dict set ::OBJTABLE $n $target ; set target $n }
+						if $hasref { foreach v $ib {if {$v ni [dict get $target *ref]} {dict lappend target *ref ; dict incr target *refcount} } }
+						
 						concat
 						}
+					array {
+						set old_length [llength $args]
+						set old [concat $args [lrange  [dict get $target *thing] $old_length end ]]
+						dict set target *thing $old
+						set old  [lsort -unique [concat  [range 0 $old_length-1] [dict get $target *ref]  ] ]
+						dict set target *ref $old
+						dict set target *refcount $old_length
+						dict set target *count [llength [dict get $target *thing]]
+						unset old
+						}
 				}
+				if $update_later { dict set ::OBJTABLE $n $target ; set target $n }
 				
 			}
 			reftable {
@@ -1567,11 +1589,13 @@ proc debug {} {
 	
 #objectpages
 #PDF create stream text -text Messages -x 0
-set x [PDF create -asobject -ref page]
-set y [PDF create -asobject -ref pages]
-set z [PDF create -asobject -ref stream text -text HELLO -fontname Calibri -fontsize 12]
+set x [PDF create -ref page]
+set y [PDF create -ref pages]
+set z [PDF create -ref stream text -text HELLO -fontname Calibri -fontsize 12]
 PDF create -hasref dict /Len *8
 PDF update -hasref x /Parent *$y /Contents *$z
+PDF update -hasref 6 *1
+PDF update -hasref y /Kids *6 /Count 1
 PDF reftable
 PDF display $z
 concat
