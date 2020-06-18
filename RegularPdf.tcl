@@ -1325,7 +1325,7 @@ proc PDF {what args} {
 					dict lappend x *type object
 					dict lappend x *begin [set asa "$c 0 obj\n"]
 					dict set x *begin [lreverse [dict get $x *begin]]
-					dict lappend x *end [set asb "endobj\n"]
+					dict lappend x *end [set asb "\nendobj"]
 					dict incr x *length [string length $asa$asb]
 					concat
 				}
@@ -1367,16 +1367,31 @@ proc PDF {what args} {
 				set offset [string length $header]
 				set rows [list]
 				
+				puts [string repeat /*\\ 5]
 				dict for {key val} $::OBJTABLE {
-					lappend rows "[format %010d $offset] 00000 n"
+					set str "[format %010d $offset] 00000 n"
+					puts $str
+					puts [PDF display $key]
+					lappend rows $str
 					incr offset [dict get $val *length]
 				}
 			puts [string repeat /*\\ 5]
-			foreach v $rows {
-				puts $v
-			}
-			puts [string repeat /*\\ 5]
 			concat
+			}
+			display {
+				lassign $args target
+				if [string is digit $target] {set target [dict get $::OBJTABLE $target]}
+				lassign [dict get $target *type] t1 t2
+				set A "[join [dict get $target *begin] {}]"
+				set B "[join [dict get $target *end] {}]"
+				set M "[join [dict get $target *thing] ]"
+				switch $t1 {stream {
+					set S [dict values [dict filter $target key child_*] ]
+					set S [join [join $S [dict get $target *streammiddle]] { }]
+					set M [string cat $M $S]
+					
+					} }
+					return "$A$M$B"
 			}
 		} 
 	
@@ -1558,6 +1573,7 @@ set z [PDF create -asobject -ref stream text -text HELLO -fontname Calibri -font
 PDF create -hasref dict /Len *8
 PDF update -hasref x /Parent *$y /Contents *$z
 PDF reftable
+PDF display $z
 concat
 }
 # Help->About Menu
