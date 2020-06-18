@@ -1239,7 +1239,6 @@ proc PDF {what args} {
 	set hasref 0
 	set ref 0
 	set Ret 0
-	set asobject 0
 	
 	foreach v $args {
 		if [string match -?* $v]  {incr count ; lappend s [string range $v 1 end] } else {break}
@@ -1289,8 +1288,8 @@ proc PDF {what args} {
 						dict incr x *length [string length [join [dict get $x *end] {}]]
 					} stream {
 						dict set x *type stream
-						dict append x *begin "stream\n"
-						dict append x *end "\nendstream"
+						dict lappend x *begin "stream\n"
+						dict lappend x *end "\nendstream"
 						dict set x *thing [dict create]
 						dict append x *count 0
 						dict append x *streammiddle "\n"
@@ -1333,7 +1332,7 @@ proc PDF {what args} {
 					dict lappend x *type object
 					dict lappend x *begin [set asa "$c 0 obj\n"]
 					dict set x *begin [lreverse [dict get $x *begin]]
-					dict lappend x *end [set asb "\nendobj"]
+					dict lappend x *end [set asb "\nendobj\n"]
 					dict incr x *length [string length $asa$asb]
 					dict append ::OBJTABLE $c $x }
 				if $Ret { if $ref { return [list $x $c ] } else {return $x} } elseif $ref { return $c } else { return $x }
@@ -1387,16 +1386,20 @@ proc PDF {what args} {
 			reftable {
 				set header "%PDF-1.4\n"
 				set offset [string length $header]
+				set rt [list]
 				set rows [list]
-				
 				puts [string repeat /*\\ 5]
 				dict for {key val} $::OBJTABLE {
 					set str "[format %010d $offset] 00000 n"
 					puts $str
-					puts [PDF display $key]
-					lappend rows $str
+					#puts -nonewline [PDF display $key]
+					lappend rows [PDF display $key]
+					lappend rt $str
 					incr offset [dict get $val *length]
 				}
+			puts -nonewline [join $rows {}]
+			#
+			puts -nonewline [join $rt "\n"]
 			puts [string repeat /*\\ 5]
 			concat
 			}
@@ -1591,7 +1594,7 @@ proc debug {} {
 #PDF create stream text -text Messages -x 0
 set x [PDF create -ref page]
 set y [PDF create -ref pages]
-set z [PDF create -ref stream text -text HELLO -fontname Calibri -fontsize 12]
+set z [PDF create -ref stream text -text HELLO -fontname /Font1 -fontsize 12] ; #-fontname Calibri
 PDF create -hasref dict /Len *8
 PDF update -hasref x /Parent *$y /Contents *$z
 PDF update -hasref 6 *1
