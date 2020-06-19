@@ -1239,6 +1239,7 @@ proc PDF {what args} {
 	set hasref 0
 	set ref 0
 	set Ret 0
+
 	
 	foreach v $args {
 		if [string match -?* $v]  {incr count ; lappend s [string range $v 1 end] } else {break}
@@ -1269,7 +1270,10 @@ proc PDF {what args} {
 					}
 				
 				switch $type {
-					dict {
+					header {
+						lassign $args ver ; if { $ver eq {} } { set ver 1.4 }
+						return  "%PDF-$ver\n"
+					} dict {
 						dict set x *type dict
 						dict set x *thing [dict create {*}$args]
 						dict lappend x *begin {<< }
@@ -1384,39 +1388,46 @@ proc PDF {what args} {
 				
 			}
 			reftable {
-				set header "%PDF-1.4\n"
-				set offset [string length $header]
-				set rt [list]
-				set rows [list]
-				puts [string repeat /*\\ 5]
+				lassign $args offset
+				if {$offset eq {}} { set offset [string length [PDF create header]] }
+				
+				set rows [list "[format %010d 0] 65535 f"]
+				set rcount 1
+				
 				dict for {key val} $::OBJTABLE {
-					set str "[format %010d $offset] 00000 n"
-					puts $str
-					#puts -nonewline [PDF display $key]
-					lappend rows [PDF display $key]
-					lappend rt $str
+					lappend rows "[format %010d $offset] 00000 n"
 					incr offset [dict get $val *length]
+					incr rcount
 				}
-			puts -nonewline [join $rows {}]
-			#
-			puts -nonewline [join $rt "\n"]
-			puts [string repeat /*\\ 5]
-			concat
+				return [ list $rows $rcount $offset  ]
 			}
-			display {
+			str {
 				lassign $args target
 				if [string is digit $target] {set target [dict get $::OBJTABLE $target]}
 				lassign [dict get $target *type] t1 t2
 				set A "[join [dict get $target *begin] {}]"
 				set B "[join [dict get $target *end] {}]"
 				set M "[join [dict get $target *thing] ]"
-				switch $t1 {stream {
+				switch $t1 {
+					stream {
 					set S [dict values [dict filter $target key child_*] ]
 					set S [join [join $S [dict get $target *streammiddle]] { }]
 					set M [string cat $M $S]
 					
-					} }
+					}
+					}
 					return "$A$M$B"
+			}
+			display {
+				set rows [PDF create header]
+				dict for {key val} $::OBJTABLE {
+					append rows [PDF str $key]
+				}
+				append rows "xref\n"
+				lassign [PDF reftable] lst no offset
+				append rows "0 $no\n[join $lst \n]\ntrailer"
+				
+				
 			}
 		} 
 	
