@@ -989,6 +989,7 @@ proc ToolbarButton {args} {
 }
 set OBJ 0
 set OBJTABLE [dict create]
+set OBJSpecial [dict create]
 
 proc incrobj {{by 1}} {
  return [incr ::OBJ $by]
@@ -1272,7 +1273,13 @@ proc PDF {what args} {
 				switch $type {
 					header {
 						lassign $args ver ; if { $ver eq {} } { set ver 1.4 }
-						return  "%PDF-$ver\n"
+						dict set x *type header
+						dict set x *thing "%PDF-$ver"
+						dict lappend x *end "\n"
+						dict incr x *length [ string length [ join [dict get $x *thing] ] ]
+						dict incr x *length [string length [join [dict get $x *begin] {}]]
+						dict incr x *length [string length [join [dict get $x *end] {}]]
+						dict set ::OBJSpecial header $x
 					} dict {
 						dict set x *type dict
 						dict set x *thing [dict create {*}$args]
@@ -1328,6 +1335,12 @@ proc PDF {what args} {
 						set x [PDF create dict /Type /Page /Parent $pa /Contents $co]
 						dict set x *type page	
 						concat
+					} trailer {
+						dict set x *type trailer
+						dict lappend x *begin "trailer\n"
+						dict set x *end [list "\nstartxref" "\nx" "\n%%EOF"]
+						dict set x *thing [PDF str [PDF create dict /Size x /Info x /Root x]]
+						dict set ::OBJSpecial trailer $x
 					}
 				}
 				
@@ -1389,7 +1402,7 @@ proc PDF {what args} {
 			}
 			reftable {
 				lassign $args offset
-				if {$offset eq {}} { set offset [string length [PDF create header]] }
+				if {$offset eq {}} { set offset [dict get $::OBJSpecial header *length] }
 				
 				set rows [list "[format %010d 0] 65535 f"]
 				set rcount 1
@@ -1419,15 +1432,18 @@ proc PDF {what args} {
 					return "$A$M$B"
 			}
 			display {
-				set rows [PDF create header]
+				set rows [PDF str [dict get $::OBJSpecial header ]]
+				
 				dict for {key val} $::OBJTABLE {
 					append rows [PDF str $key]
 				}
 				append rows "xref\n"
-				lassign [PDF reftable] lst no offset
-				append rows "0 $no\n[join $lst \n]\ntrailer"
-				
-				
+				lassign [PDF reftable] table no offset
+				append rows "0 $no\n[join $table \n]\n"
+				append rows [PDF str [PDF create trailer]]
+				puts "[string repeat /*\\ 5]"
+				puts $rows
+				puts "[string repeat /*\\ 5]"
 			}
 		} 
 	
@@ -1610,6 +1626,8 @@ PDF create -hasref dict /Len *8
 PDF update -hasref x /Parent *$y /Contents *$z
 PDF update -hasref 6 *1
 PDF update -hasref y /Kids *6 /Count 1
+PDF create header
+PDF create trailer
 PDF reftable
 PDF display $z
 concat
