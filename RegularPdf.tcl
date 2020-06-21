@@ -23,11 +23,28 @@ proc buttonleave {w} {
 
 
 proc operation {what args} {
- if {[llength $args] == 1} {return $args}
- set what [dict get {plus + minus - product * divide / raise **} $what]
- set str [join $args $what]
- set res [expr $str]
- return $res
+
+ if { $what eq {vectorize} || $what eq {vectorise} } {
+	set vec 1
+	lassign $args what
+	set args [lrange $args 1 end] 
+	}
+ if {[llength $args] == 1} {return $args} 
+ 
+ set d [dict create plus + minus - product * divide / raise **] ;#Symbols
+ set str {}
+ 
+ if [info exists vec] {
+ 
+	set s "[dict get $d $what][lindex $args end]"
+	set str [lmap v $args {subst [expr $v$s]}]
+ } else {
+
+	set str [join $args $what]
+	set str [expr $str]
+ }
+ 
+ return $str
 }
 
 proc range {from to} {
