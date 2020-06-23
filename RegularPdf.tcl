@@ -6,9 +6,8 @@ package require Tk
 package require TclOO
 
 wm title . RegularPDF
-wm geometry . "700x400+[expr [winfo vrootwidth .]/2]+[expr [winfo vrootheight .]/2]"
-panedwindow .pane -showhandle 1 -sashwidth 10 -sashpad 20 -sashrelief raised -handlepad 0
-place .pane -x 0 -y 0 -relwidth 1 -relheight 0.9
+wm geometry . "700x400+[expr [winfo vrootwidth .]/2-350]+[expr [winfo vrootheight .]/2-200]"
+place [panedwindow .pane -showhandle 1 -sashwidth 10 -sashpad 20 -sashrelief raised -handlepad 0] -x 0 -y 0 -relwidth 1 -relheight 0.9
 frame .resize -bd 5 -relief groove
 # About Dialog Window
 proc buttonhover {w} {
@@ -21,37 +20,39 @@ proc buttonleave {w} {
 	
 }
 
-
 proc operation {what args} {
-
+ set d [dict create plus + minus - product * divide / raise **] ;#Symbols
  if { $what eq {vectorize} || $what eq {vectorise} } {
 	set vec 1
 	lassign $args what
 	set args [lrange $args 1 end] 
 	}
- if {[llength $args] == 1} {return $args} 
+ set s [dict get $d $what] ;#Decode the symbol
  
- set d [dict create plus + minus - product * divide / raise **] ;#Symbols
+ if {[llength $args] < 2} { if {$args eq {} } { return {} } else { return [expr "$s $args"] } } 
+ 
  set str {}
  
  if [info exists vec] {
  
-	set s "[dict get $d $what][lindex $args end]"
+	set s "$s[lindex $args end]"
+	set args [lrange $args 0 end-1]
 	set str [lmap v $args {subst [expr $v$s]}]
  } else {
 
-	set str [join $args $what]
+	set str [join $args $s]
 	set str [expr $str]
  }
  
  return $str
 }
 
-proc range {from to} {
-	set from [expr { $from - 1}] 
+proc range {from to {by 1}} {
+	set from [expr { $from }] 
 	set to [expr  $to ] 
-	set str [lrepeat [expr { $to - $from }] x ]
-	set lst [lmap v $str { subst [incr from] }]
+	set str [lrepeat [expr { $to - $from - $by + 1}] x ]
+	incr from -$by
+	set lst [lmap v $str { subst [incr from $by] }]
 	return $lst
 }
 
@@ -113,8 +114,8 @@ proc polar_to_rect {angle_deg_input {r 1} {origin {0 0}} {dontConvertToRad false
 	
 }
 
-proc grand_annoucement {args} {
-	puts ==$args==
+proc put1 {args} {
+	puts =$args=
 }
 proc get_args {List args} {
 	set r [list]
@@ -183,7 +184,7 @@ proc polar_to_rect2 {args} {
 	lappend args -XDefaults {0 1 {0 0} false}
 	
 	set r [new_args $args -angle -radius -shift -dontConvertToRad  ]
-;#grand_annoucement $r
+;#put $r
 	
 	lassign $r angle radius shift dontConvertToRad ; set r $radius
 	
@@ -194,7 +195,7 @@ proc polar_to_rect2 {args} {
 ;#"
 	
 	lassign $shift xshift yshift
-;#grand_annoucement $xshift $yshift
+;#put $xshift $yshift
 	
 	set input [expr {$dontConvertToRad ? $angle : [deg_to_rad $angle] }]
 	
@@ -206,7 +207,7 @@ proc polar_to_rect2 {args} {
 }
 
 proc polygon {args} {
-	;#grand_annoucement ARGS $args
+	;#put ARGS $args
 	set output [list]
 	
 	set count 0
@@ -228,7 +229,7 @@ proc polygon {args} {
 			set add 0
 			if {$sign != {-1}} { set add [string range $v $sign+1 end] ; set FSIGN [string index $v $sign] }  
 			
-			;#grand_annoucement -no $number $add ### "$number $FSIGN $add" ### [expr "$number $FSIGN $add"]
+			;#put -no $number $add ### "$number $FSIGN $add" ### [expr "$number $FSIGN $add"]
 			lappend output [expr "$number $FSIGN $add"]
 			
 			
@@ -271,7 +272,7 @@ proc parallel {args} {
 	
 	
 	
-	;#grand_annoucement $r || $rr
+	;#put $r || $rr
 	
 	return "$r $rr"
 }
@@ -279,10 +280,10 @@ proc parallel {args} {
 proc change_font {args} {
 	if {$::cFont eq {}} {
 		
-		set ::cFont [font actual TkDefaultFont -displayof .pane.main.canvas] ; ;#grand_annoucement $::cFont
+		set ::cFont [font actual TkDefaultFont -displayof .pane.main.canvas] ; ;#put $::cFont
 		set ::cSize [get_args $::cFont -size]
 	} else {
-		#grand_annoucement cSize $::cSize
+		#put cSize $::cSize
 		incr ::cSize [lindex $args end]1
 	}
 	set ::cDim [.pane.main.canvas bbox TEXT]
@@ -356,15 +357,15 @@ set s [label .0label -relief sunken -borderwidth 2 -text ""]
 #Checkbutton
 proc Reliefbutton {name args} {
 	
-	puts stdout "(Reliefbutton) >$name< >$args<"
+	#puts stdout "(Reliefbutton) >$name< >$args<"
 	set operation [lindex $args 0]
 	
 	switch $operation {
 		ison {
-			return [expr {"[$name cget -relief]" eq "sunken"}]
+			return [expr {[$name cget -relief] eq {sunken}}]
 		}
 		isoff {
-			return [expr {"[$name cget -relief]" eq "groove"}]
+			return [expr {[$name cget -relief] eq {groove}}]
 		}
 		default {
 			set a [button $name {*}$args]
@@ -456,9 +457,9 @@ proc pdfparse {objpath} { #object is ::oo::objxxx it is result of [self] from th
 }
 
 proc TEXThover0 {args} {
-	#grand_annoucement TEXThover $args $::cDim
+	#put TEXThover $args $::cDim
 	variable x [lindex $args 0] y [lindex $args 1]
-	if { $y+5 >= [lindex $::cDim 3] || $x >= [lindex $::cDim 2] } {grand_annoucement Nope ; return}
+	if { $y+5 >= [lindex $::cDim 3] || $x >= [lindex $::cDim 2] } {put Nope ; return}
 	set ::tIndex [.pane.main.canvas index TEXT @$x,$y]
 	set i $::tIndex
 	
@@ -480,8 +481,8 @@ proc TEXThover {c x y h} {
 	set now [$c type current]
 	set info [$c bbox current] ; if { $info eq {} } { return } 
 	lassign $info bx by bw bh 
-	grand_annoucement $x $y <> $info 
-	if { $y+5 >= $bh || $x >= $bw } {grand_annoucement Nope ; 
+	put $x $y <> $info 
+	if { $y+5 >= $bh || $x >= $bw } {put Nope ; 
 
 	if {$::bCursor ne {}} { $c dchars current $::bIndex } ; return}
 
@@ -566,7 +567,7 @@ proc create_text {c x y k a} {
 		}
 		Left {
 			if {$g} {
-			grand_annoucement [expr $g - 1]
+			put [expr $g - 1]
 			
 			$c icursor BLOCK_CURSOR [incr ::bbVar -1]
 			;#$c dchars BLOCK_CURSOR [expr $::bbVar + 1]
@@ -592,9 +593,9 @@ proc create_text {c x y k a} {
 	
 	return
 	set r [ $c find overlapping $x $y [expr $x + [font measure TkDefaultFont -displayof $c $::Cursor] ] $y ]
-	;#grand_annoucement $r
+	;#put $r
 	foreach v $r { if { [$c type $v] eq {text} } { set r $v ; break } }
-	;#grand_annoucement $r
+	;#put $r
 	if { $r eq {} } {
 	$c create text $x $y -tag TEXT -anchor w -text $k
 	}
@@ -641,7 +642,7 @@ proc rotate {args} {
 	lappend args -XDefaults {"" 0 all}
 	set got [new_args $args -c -angle -id] ;#tagOrID
 	lassign $got c angle id
-	;#grand_annoucement GOT $got
+	;#put GOT $got
 	set send [list]
 	
 	set target [$c coords $id]
@@ -671,11 +672,11 @@ proc triadd {args} {
 proc triangle {args} {
 	lappend args -XDefaults {{0 0} {60 60} 50 TRIANGLE .pane.main.canvas}
 	set temp [new_args $args -xy -angles -radius -tag -c]
-	;#grand_annoucement $temp
+	;#put $temp
 	lassign $temp ox langle radius tag c
 	lassign $ox ox oy
 	lassign $langle langle rangle
-	;#grand_annoucement tag $tag
+	;#put tag $tag
 	set langle [minus 180 $langle] 	;#radius
 	
 	lassign [polar_to_rect2 -angle $langle -radius $radius -shift {0 0}] a b
@@ -697,11 +698,11 @@ proc hoverline {c {x ""} {y ""} args} {
 	if {$x eq "" } {
 		set f [font metrics TkDefaultFont] ; set s [lsearch -glob $f -linespace] ; set s [lindex $f $s+1]
 		incr s 5
-		set ::lVar $s ; lassign [$c bbox B] bx by bw bh ; #grand_annoucement ABA [$c bbox B]
+		set ::lVar $s ; lassign [$c bbox B] bx by bw bh ; #put ABA [$c bbox B]
 		incr bx 2
 		
 		set many [expr {$bh} / $s] ; set count -1 ; set i $by ; incr i $s ; while {[incr count] < $many} { 
-			#grand_annoucement 
+			#put 
 			$c create line $bx $i $bw $i -width 2 -dash _ -fill {} -tag LINE ; incr i $s }
 		;#$c bind B <Motion> {hoverline %W %x %y}
 		$c create text $bx $by -text {} -anchor w -fill {} -tag BLOCK_CURSOR
@@ -710,14 +711,14 @@ proc hoverline {c {x ""} {y ""} args} {
 		return
 	}
 	;#set x [$c canvasx $_x] ; set y [$c canvasy $_y] 
-	;#$grand_annoucement many $many
+	;#$put many $many
 	$c itemconfig LINE -fill {}
 	;#set next [$c find closest $x $y $::lVar B]
 	;#set next [$c find closest $x $y $::lVar ]
 	;#set next [$c index LINE @$x,$y]
 	set next [$c find overlapping $x $y [expr $x+1] [expr $y+$::lVar] ]
 	foreach v $next { if {[$c type $v] eq {line}} {set next $v ; break} }
-	;#grand_annoucement next $next
+	;#put next $next
 	
 	if {[$c type $next] eq {line}} {$c itemconfig $next -fill gray ;
 		set ::lId $next ; set ::lPos [$c bbox $next] ; set ::lY [lindex $::lPos 1]
@@ -838,7 +839,7 @@ oo::class create Tabs {
 		my fill_canvas_toolbar
 		my draw_document
 		my make_ruler
-		hoverline $mc ;# grand_annoucement $ox $oy $w $h <> $x $y; ; grand_annoucement OUT
+		hoverline $mc ;# put $ox $oy $w $h <> $x $y; ; put OUT
 		bind $mc <Motion> { lassign [%W bbox B] ox oy w h ; set x [%W canvasx %x] ; set y [%W canvasy %y] ; if { $x  >= $ox && $x <= [expr $ox + $w] && $y >= $oy && $y <= [expr $oy + $h]} { hoverline %W $x $y } else {%W config -cursor arrow ; %W itemconfig LINE -fill {} ; %W focus ""} }
 		$mc bind BLOCK_CURSOR <Key> { set x [%W canvasx %x] ; set y [%W canvasy %y] ; create_text %W $x $y %K %A}
 		;#my triangle_tick
@@ -915,8 +916,8 @@ oo::class create Tabs {
 	}
 	method draw_document {} {
 		set c .pane.main.canvas
-		#grand_annoucement [join [.pane.main.canvas config] \n]
-		#grand_annoucement [join [winfo reqheight .pane.main.canvas ] \n]
+		#put [join [.pane.main.canvas config] \n]
+		#put [join [winfo reqheight .pane.main.canvas ] \n]
 		
 		set w [$c cget -width]
 		set h [$c cget -height]
@@ -982,7 +983,7 @@ $e config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 $f config -xscrollcommand "$h set" -yscrollcommand  "$g set"
 # Pack "Items in current directory"
 
-#pack $s -side top -fill x
+#pack $s -side bottom -fill x
 #pack $a -side left -expand false -fill y
 #place $a -relx 0.02 -y 0.4in -relwidth 0.3 -relheight 1 
 pack $d -fill x 				; 
@@ -1129,73 +1130,14 @@ namespace eval save {
 	set filter {}
 	set exts {{"All Files" *} {"PostScript Files" {*.ps}}}
 	 
+
 	proc pdf {args} {
-		lassign [$::cc bbox B] bx by bw bh
-	set single "4 0 obj
-		<<
-		/Type /Page
-		/Parent 3 0 R
-		/Contents <</Length 30>> stream
-		BT 50 50 Td
-		(HELLO)Tj
-		ET
-		endstream
-		endobj"
+		set path [tk_getSaveFile -filetypes $save::exts -title {Save current Document as} -typevariable save::filter]
 	
-	set pages {3 0 obj
-		<<
-		/Type /Pages Kids [4 0 R]
-		/MediaBox \[0 0 $bw $bh\]>>
-		endobj
+		set out [open $path w]
 		
-	}
-	set meta {2 0 obj
-		<<
-		/Title (A PDF FILE)
-		/Author (Abdullah Fatota)
-		/Creator (RegularPDF)
-		/Producer (RegularPDF)>>
-		endobj
-		
-	}
-	set catalog {1 0 obj
-		<<
-		/Type /Catalog 
-		/Pages 3 0 R 
-		/Metadata 2 0 R>>
-		endobj
-	}
-	
-	
-	
-	set trail {<<
-		/Size 5
-		/Root 1 0 R
-		>>
-	}
-	set xref [list xref {0 5} {0000000000 65535 f} ]
-	set count 0
-	set dummy {}
-	
-	set out [open ~/TestPDF/out.pdf w]
-	foreach v {start catalog meta pages single ""} {
-		if {$v ne {}} {set o [join [lmap v [split [set $v] \n] {string trim $v}] ]}
-		if { $v ne {start} } { lappend xref "[format %010d $count] 00000 n" }
-		incr count [string length $o] ; incr count ; puts "|$o| count=$count"
-		
-	}
-	incr count -1
-	puts $xref
-	foreach v {start catalog meta pages single } {
-		if {$v ne {}} {set o [string trim [set $v]]}
-		puts $out $o
-	}
-	puts  $out [join $xref \n]
-	puts $out $trail
-	puts $out startxref
-	puts $out $count
-	puts $out %%EOF
-	close $out
+		close $out
+		concat
 }
 	 
 	proc ps {} {	
@@ -1213,8 +1155,6 @@ namespace eval save {
 		return $r
 	}
 }
-
-
 
 proc put {x} {
 	
@@ -1251,26 +1191,40 @@ proc reftable { d {replace 0} } {
 }
 
 proc PDF {what args} {
+
 	
-	set count 0
 	set s [list]
 	set hasref 0
 	set ref 0
 	set Ret 0
-
+	set inline 0 ; # inline means-> IndexToChange Value
 	
+	if {[set __i [lsearch -glob $args -upvar?*]] != {-1}}	 {
+		set __s [lindex $args $__i]
+		set args [lreplace $args $__i $__i]
+		
+		foreach __i [lrange [split $__s .] 1 end] {
+			upvar 1 $__i __$__i
+		}
+		unset __s
+		} else {}
+	unset __i
+	
+	
+	set count 0
 	foreach v $args {
 		if [string match -?* $v]  {incr count ; lappend s [string range $v 1 end] } else {break}
 	}
 	set args [lrange $args $count end]
 	foreach v $s { set $v 1 }
-		
+	
+	
 	if $hasref {
-			set i [lsearch -glob -all $args \\**]
-			set ia [lmap v $i { subst [lindex $args $v] }]
-			set ia [lmap v $ia {subst {[string trimleft $v *] 0 R} } ]
-			set ib [lmap v $i { subst [lindex $args $v-1] }]
-			foreach v $i vv $ia {lset args $v $vv}
+		set i [lsearch -glob -all $args \\**]
+		set ia [lmap v $i { subst [lindex $args $v] }]
+		set ia [lmap v $ia {subst {[string trimleft $v *] 0 R} } ]
+		set ib [lmap v $i { subst [lindex $args $v-1] }]
+		foreach v $i vv $ia {lset args $v $vv}
 		}
 		
 		switch $what {
@@ -1288,15 +1242,13 @@ proc PDF {what args} {
 					}
 				
 				switch $type {
-					header {
-						lassign $args ver ; if { $ver eq {} } { set ver 1.4 }
-						dict set x *type header
-						dict set x *thing "%PDF-$ver"
-						dict lappend x *end "\n"
-						dict incr x *length [ string length [ join [dict get $x *thing] ] ]
-						dict incr x *length [string length [join [dict get $x *begin] {}]]
-						dict incr x *length [string length [join [dict get $x *end] {}]]
-						dict set ::OBJSpecial header $x
+					
+					catalog {
+						set x [PDF create dict /Type /Catalog /Pages x]
+						dict set x *type catalog
+					} info {
+						set x [PDF create dict /Title {(A PDF File)} /Author {(Abdullah Fatota)} /Creator (RegularPDF) /Producer (RegularPDF)]
+						dict set x *type info
 					} dict {
 						dict set x *type dict
 						dict set x *thing [dict create {*}$args]
@@ -1330,10 +1282,11 @@ proc PDF {what args} {
 						switch $type {
 							text {
 								dict incr x *count
-								dict append x child_text[dict get $x *count] [list [list $fontn $fonts Tf] [list BT] [list $tx $ty Td] [list ($text) Tj ] ]
+								dict append x child_text[dict get $x *count] [list [list $fontn $fonts Tf] [list BT] [list $tx $ty Td] [list ($text) Tj ] [list ET] ]
 							}
 						}
-						dict incr x *length [string length [join [join [dict values [dict filter $x key child_*] ] [dict get $x *streammiddle] ] { }]  ]
+						dict incr x *length [string length [join [join [dict values [dict filter $x key child_*] ] { } ] [dict get $x *streammiddle]]  ]
+						dict lappend x *begin "[PDF str [PDF create dict /Length [dict get $x *length] ] ]\n"
 						dict incr x *length [string length [join [dict get $x *begin] {}]]
 						dict incr x *length [string length [join [dict get $x *end] {}]]
 						} pages {
@@ -1352,84 +1305,163 @@ proc PDF {what args} {
 						set x [PDF create dict /Type /Page /Parent $pa /Contents $co]
 						dict set x *type page	
 						concat
-					} trailer {
-						dict set x *type trailer
-						dict lappend x *begin "trailer\n"
-						dict set x *end [list "\nstartxref" "\nx" "\n%%EOF"]
-						dict set x *thing [PDF str [PDF create dict /Size x /Info x /Root x]]
-						dict set ::OBJSpecial trailer $x
-					}
+					} 
 				}
 				
 				if $ref {
 					set c [incrobj]
 					dict lappend x *type object
-					dict lappend x *begin [set asa "$c 0 obj\n"]
-					dict set x *begin [lreverse [dict get $x *begin]]
+					dict set x *begin [list [set asa "$c 0 obj\n"] {*}[dict get $x *begin]]
 					dict lappend x *end [set asb "\nendobj\n"]
 					dict incr x *length [string length $asa$asb]
 					dict append ::OBJTABLE $c $x }
 				if $Ret { if $ref { return [list $x $c ] } else {return $x} } elseif $ref { return $c } else { return $x }
 			}
 			update {
-				set update_later 0
-				if [string is alpha [lindex $args 0]] { upvar [lindex $args 0] target } else {set target [lindex $args 0] }
+				
+				set UName [lindex $args 0]
+				set UP {} ; # "U Payload"
 				set args [lrange $args 1 end]
 				
-				if [string is digit $target] {
-					set n $target
-					set target [dict get $::OBJTABLE $n ]
-					set update_later 1
+
+				if { [string is alpha $UName] } {
+					if {$UName eq {end} && ![info exists endIsVar]} { ;# $endIsVar
+						set UTarget [dict get $::OBJTABLE end]
+					} else {
+						upvar 1 $UName UTarget
+						set UUpvared 1
 					}
-				lassign [dict get $target *type] t1 t2
-				switch $t1 {
+				} elseif { [string is digit $UName] } {
+					set UTarget [dict get $::OBJTABLE $UName]
+					
+				}
+				
+				set USwitch [lindex $args 0]
+				
+				
+				if {$USwitch eq {internal}} {
+					set USwitch [lindex $args 2]
+					
+					switch [lindex $args 1] {
+						
+						list {
+							set args [lrange $args 3 end]
+							set UP [dict get $UTarget *$USwitch] ; dict incr UTarget *length -[string length [join $UP {}]]
+							if $inline {
+								set UP $args
+							} else {
+							
+								set UIndicies [dict keys $args]
+								set UIndexMax [::tcl::mathfunc::max {*}$UIndicies]
+								incr UIndexMax 1
+								
+								if {$UIndexMax > [llength $UP]} { 
+									set UP [list {*}$UP {*}[lrepeat [expr {$UIndexMax - [llength $UP]}] OUT.OF.RANGE ]] }
+								
+								foreach UV $UIndicies UVV [dict values $args] {
+									
+									lset UP $UV $UVV
+								}
+							}
+							dict set UTarget *$USwitch $UP ; dict incr UTarget *length [string length [join $UP {}] ]
+							if [info exists __ib] { 
+								set UP [list {*}[dict get $UTarget *ref] {*}$__ib] ; set UP [lsort -unique $UP]
+								dict set UTarget *ref $UP ; dict set UTarget *refcount [llength $UP]
+								dict set UTarget *count [llength [dict get $UTarget *thing]] }
+						}
+						dict {
+							set args [lrange $args 3 end]
+							set UOld_length 0
+							dict for {UK UVAL} $args {
+								if [dict exists $UTarget *$USwitch $UK] {
+									incr UOld_length -[string length [dict get $UTarget *$USwitch $UK]] 
+								} else {
+									dict set UTarget *$USwitch $UK $vv
+								}
+							}
+							dict set UTarget *$USwitch [dict merge [dict get $UTarget *$USwitch] $args ]
+							incr UOld_length [string length [join [dict values $args] {}]]
+							dict incr UTarget *length $UOld_length
+							if [info exists __ib] { 
+								set UP [list {*}[dict get $UTarget *ref] {*}$__ib ] ; set UP [lsort -unique $UP]
+								dict set UTarget *ref $UP ; dict set UTarget *refcount [llength $UP] }
+							concat
+						}
+						component {
+							set args [lrange $args 3 end]
+							if { [dict exists $UTarget *$USwitch]  } {
+								dict incr UTarget *length -[string length [dict get $UTarget *$USwitch]]
+								dict set UTarget *$USwitch [lindex $args 1]
+								dict incr UTarget *length [string length [dict get $UTarget *$USwitch]]
+							}
+						}
+					} 
+					return 
+				}
+		
+				set args [lrange $args 1 end]
+				lassign [dict get $UTarget *type] UT1 UT2
+				
+				switch $UT1 {
+					
+					header {
+						
+						if { $USwitch in {thing end} } { 
+							PDF update UTarget internal list $USwitch {*}$args
+						} elseif [dict exists $UTarget $USwitch] {
+							PDF update UTarget internal dict {*}$args
+							
+						}
+					}
+					trailer {
+						if  {$USwitch eq {thing}} {
+							PDF update {*}[expr { $hasref ? {-upvar.ib} : {} }] UTarget internal dict $USwitch {*}$args
+						} elseif { $USwitch eq {type}} {
+							PDF update {*}[expr { $hasref ? {-upvar.ib} : {} }] UTarget internal component $USwitch {*}$args
+						} elseif {$USwitch in {begin end}} {
+							PDF update {*}[expr { $hasref ? {-upvar.ib} : {} }] UTarget internal list $USwitch {*}$args
+						}
+					}
 					page -
 					pages -
+					catalog -
 					dict {
-						set old_length 0
-						foreach v [dict keys $args] vv [dict values $args] {
-							if [dict exists $target *thing $v] {
-								incr old_length -[string length [dict get $target *thing $v]] 
-							} else {
-								dict set target *thing $v $vv
-							}
-						
-						}
-						dict set target *thing [dict merge [dict get $target *thing] $args ]
-						#incr old_length [string length [join $ia {}] ]
-						incr old_length [string length [join [dict values $args] {}]]
-						dict incr target *length $old_length
-						if $hasref { foreach v $ib {if {$v ni [dict get $target *ref]} {dict lappend target *ref ; dict incr target *refcount} } }
-						
-						concat
+	
+							PDF update [expr { $hasref ? {-upvar.ib} : {} }] UTarget internal dict thing {*}$args
 						}
 					array {
-						set old_length [llength $args]
-						set old [concat $args [lrange  [dict get $target *thing] $old_length end ]]
-						dict set target *thing $old
-						set old  [lsort -unique [concat  [range 0 $old_length-1] [dict get $target *ref]  ] ]
-						dict set target *ref $old
-						dict set target *refcount $old_length
-						dict set target *count [llength [dict get $target *thing]]
-						unset old
+						
+						if $inline {
+							PDF update -inline [expr { $hasref ? {-upvar.ib} : {} }] UTarget internal list thing {*}$args
+							
+						} else {
+							PDF update [expr { $hasref ? {-upvar.ib} : {} }] UTarget internal list thing {*}$args
+						}
+						
 						}
 				}
-				if $update_later { dict set ::OBJTABLE $n $target ; set target $n }
+				
+				if ![info exists UUpvared] {  dict set ::OBJTABLE $UName $UTarget }
 				
 			}
 			reftable {
-				lassign $args offset
-				if {$offset eq {}} { set offset [dict get $::OBJSpecial header *length] }
+				set offset [lindex $args 0]
+				
+				if {$offset eq {}} { set offset 0 }
+				if {![dict exists $::OBJTABLE 0]} { PDF trailer }
+				
+				incr offset [dict get $::OBJTABLE 0 *length]
 				
 				set rows [list "[format %010d 0] 65535 f"]
-				set rcount 1
+				set objcount 1
 				
 				dict for {key val} $::OBJTABLE {
+					if {$key == 0 || $key eq {end}} {continue}
 					lappend rows "[format %010d $offset] 00000 n"
 					incr offset [dict get $val *length]
-					incr rcount
+					incr objcount
 				}
-				return [ list $rows $rcount $offset  ]
+				return [ list $rows $objcount $offset  ]
 			}
 			str {
 				lassign $args target
@@ -1439,30 +1471,66 @@ proc PDF {what args} {
 				set B "[join [dict get $target *end] {}]"
 				set M "[join [dict get $target *thing] ]"
 				switch $t1 {
+					header {
+						set A "[dict get $target *begin][dict get $target *magic][dict get $target *version][lindex [dict get $target *end] 0]"
+						set M [lmap i [dict get $target *thing] j [lrange [dict get $target *end] 1 end] {subst "$i$j"}]
+						set B {}
+					}
 					stream {
-					set S [dict values [dict filter $target key child_*] ]
-					set S [join [join $S [dict get $target *streammiddle]] { }]
-					set M [string cat $M $S]
+						set S [dict values [dict filter $target key child_*] ]
+						set S [join $S ]
+						set S [join $S [dict get $target *streammiddle]]
+						set M [string cat $M $S]
 					
 					}
 					}
 					return "$A$M$B"
 			}
 			display {
-				set rows [PDF str [dict get $::OBJSpecial header ]]
+				set rows [PDF str [dict get $::OBJTABLE 0 ]]
 				
 				dict for {key val} $::OBJTABLE {
+					if {$key == 0 || $key eq {end}} {continue}
 					append rows [PDF str $key]
 				}
-				append rows "xref\n"
-				lassign [PDF reftable] table no offset
-				append rows "0 $no\n[join $table \n]\n"
-				append rows [PDF str [PDF create trailer]]
-				puts "[string repeat /*\\ 5]"
-				puts $rows
-				puts "[string repeat /*\\ 5]"
+				
+				lassign [PDF reftable] table objcount offset
+				append rows "xref\n0 $objcount\n[join $table \n]"
+				if ![dict exists $::OBJTABLE end] { PDF trailer }
+				
+				PDF update end thing /Size $objcount
+				PDF update end end 2 "\n$offset"
+				
+				append rows [PDF str [dict get $::OBJTABLE end ]]
+				puts "[string repeat /*\\ 5]$rows[string repeat /*\\ 5]"
+				clipboard clear
+				clipboard append $rows
 			}
-		} 
+			header {
+				
+				lassign $args ver 
+				set ver [expr { [expr {$ver eq {}}] ? {1.4} : $ver } ]
+				set args [lrange $args 1 end]
+				
+				set x [PDF create array ]
+				dict set x *type header
+				dict set x *magic {%PDF-}
+				dict set x *version $ver
+				dict set x *begin {} 
+				dict set x *end [list {*}[lrepeat [llength $args] "\n"] "\n"]
+				dict set x *thing [list {*}$args]
+				dict set x *length [string length [join [list [dict get $x *magic] [dict get $x *version] {*}[dict get $x *thing] {*}[dict get $x *end]] {}]]
+				dict set ::OBJTABLE 0 $x
+			}
+			trailer {
+				set x [PDF create dict /Size x /Info x /Root x]
+				dict set x *type trailer
+				dict set x *begin [ list "\ntrailer\n" {*}[dict get $x *begin] ]
+				dict lappend x *end "\nstartxref" "\nx" "\n%%EOF"
+				dict set x *length [string length [join [list {*}[dict get $x *begin] {*}[dict get $x *thing] {*}[dict get $x *end]] {}] ]
+				dict set ::OBJTABLE end $x
+			}
+		}
 	
 } 
 
@@ -1617,11 +1685,11 @@ bind $e <Leave> {
 }
 
 proc get_center {win {before 1}} {
-	set w [expr [winfo vrootwidth $win]/2]
-	set h [expr [winfo vrootheight $win]/2]
+	set w [expr "[winfo vrootwidth .]/2 - [winfo width $win]/2"]
+	set h [expr "[winfo vrootheight .]/2 - [winfo height $win]/2"]
 	
 
-	return "+$w+$h[switch $before 1 {} 0 {}]"
+	return "+$w+$h"
 }
 
 # Pane additions
@@ -1636,22 +1704,27 @@ proc debug {} {
 	
 #objectpages
 #PDF create stream text -text Messages -x 0
-set x [PDF create -ref page]
-set y [PDF create -ref pages]
-set z [PDF create -ref stream text -text HELLO -fontname /Font1 -fontsize 12] ; #-fontname Calibri
-PDF create -hasref dict /Len *8
-PDF update -hasref x /Parent *$y /Contents *$z
-PDF update -hasref 6 *1
-PDF update -hasref y /Kids *6 /Count 1
-PDF create header
-PDF create trailer
-PDF reftable
-PDF display $z
-concat
+	set x [PDF create -ref page]
+	set y [PDF create -ref pages]
+	set z [PDF create -ref stream text -text HELLO -fontname /Font1 -fontsize 12] ; #-fontname Calibri
+	PDF create -hasref dict /Len *8
+	PDF update -hasref $x thing /Parent *$y /Contents *$z
+	PDF update -hasref 6 thing 0 *1
+	PDF update -hasref $y thing /Kids *6 /Count 1
+	PDF header
+	PDF trailer
+	set B [PDF create -ref catalog]
+	set I [PDF create -ref info]
+	PDF update -hasref end thing /Info *$I /Root *$B
+	PDF update -hasref $B thing /Pages *$y
+	PDF reftable
+	PDF display
+	concat
 }
+
 # Help->About Menu
 menu .mMenu.mHelp -tearoff 0
-.mMenu.mHelp add command -command "wm deicon $z; wm geometry $z [get_center $z]" -label About
+.mMenu.mHelp add command -command {wm deicon $z; wm geometry $z [get_center $z]} -label About
 .mMenu add cascade -label Help -menu .mMenu.mHelp
 .mMenu add command -label Console -command {console show} ; proc postmenu {name menu} { 
 			$menu post [winfo rootx .toolbar.menu$name ]  [expr [winfo rooty .toolbar.menu$name ]+[winfo height .toolbar.menu$name ]] }
@@ -1675,52 +1748,51 @@ dict append misc switchmenu 1
 proc ToolbarMenu {args}  {
 	
 	foreach command $args {
-	switch $command {
-		put {
-			foreach x {{Help .mMenu.mHelp} {Console } {Debug }} {
-				set v [lindex $x 0] 
-				set m [lindex $x 1]
-				set w [string tolower $v] 
-				
-				button .toolbar.menu$w  -text $v -relief flat
-												; #.toolbar.$w configure -font [concat [.mMenu config -font]]
-				bind .toolbar.menu$w <Enter> {buttonhover %W}
-				bind .toolbar.menu$w <Leave> {buttonleave %W} ; puts **$w**
-				
-				.toolbar.menu$w config -command "if {[string equal {} $m]} {.mMenu invoke $v} else {postmenu $w $m}"
-				
+		switch $command {
+			put {
+				foreach x {{Help .mMenu.mHelp} {Console } {Debug }} {
+					lassign $x v m
+					set w [string tolower $v] 
+					
+					button .toolbar.menu$w  -text $v -relief flat
+													; #.toolbar.$w configure -font [concat [.mMenu config -font]]
+					bind .toolbar.menu$w <Enter> {buttonhover %W}
+					bind .toolbar.menu$w <Leave> {buttonleave %W} ; puts **$w**
+					
+					.toolbar.menu$w config -command "if {[string equal {} $m]} {.mMenu invoke $v} else {postmenu $w $m}"
+					
+				}
+				ToolbarButton .toolbar.switchmenu -text "\u2b9d Up Menu" -command {ToolbarMenu swap}
+				ttk::separator .toolbar.switchmenu_separator -orient vertical
 			}
-			ToolbarButton .toolbar.switchmenu -text "\u2b9d Up Menu" -command {ToolbarMenu swap}
-			ttk::separator .toolbar.switchmenu_separator -orient vertical
-		}
-		unpack {
-			foreach v [lsearch -all -inline [winfo children .toolbar] .toolbar.menu*] {
-				try {pack forget $v } on error {} {}
+			unpack {
+				foreach v [lsearch -all -inline [winfo children .toolbar] .toolbar.menu*] {
+					try {pack forget $v } on error {} {}
+				}
 			}
-		}
-		pack {
-			foreach v [lsearch -all -inline [winfo children .toolbar] .toolbar.menu*] {
-				 try {pack $v -side left -after .toolbar.first} on error {} {}
+			pack {
+				foreach v [lsearch -all -inline [winfo children .toolbar] .toolbar.menu*] {
+					 try {pack $v -side left -after .toolbar.first} on error {} {}
+				}
+				
+				if [dict get $::misc switchmenu] { 
+					pack .toolbar.switchmenu -side left -before .toolbar.stack
+					pack .toolbar.switchmenu_separator -side left -padx 1 -fill y -after .toolbar.switchmenu
+					dict set ::misc switchmenu 0  }
+			}
+			swap { ; # like a on/off switch which to show first and hide the second
+				set str [.toolbar.switchmenu cget -text]
+				set to [lindex $str 1]
+				if {"$to" eq "Up"} {
+					ToolbarMenu unpack ; setmenu ; 
+					.toolbar.switchmenu configure -text [string map {Up Down \u2b9d \u2b9f} $str] 
+					
+				} else {
+					ToolbarMenu pack ; setmenu {} 
+					.toolbar.switchmenu configure -text [string map {Down Up \u2b9f \u2b9d} $str] }
 			}
 			
-			if [dict get $::misc switchmenu] { 
-				pack .toolbar.switchmenu -side left -before .toolbar.stack
-				pack .toolbar.switchmenu_separator -side left -padx 1 -fill y -after .toolbar.switchmenu
-				dict set ::misc switchmenu 0  }
 		}
-		swap { ; # like a on/off switch which to show first and hide the second
-			set str [.toolbar.switchmenu cget -text]
-			set to [lindex $str 1]
-			if {"$to" eq "Up"} {
-				ToolbarMenu unpack ; setmenu ; 
-				.toolbar.switchmenu configure -text [string map {Up Down \u2b9d \u2b9f} $str] 
-				
-			} else {
-				ToolbarMenu pack ; setmenu {} 
-				.toolbar.switchmenu configure -text [string map {Down Up \u2b9f \u2b9d} $str] }
-		}
-		
-	}
 	
 
 	
@@ -1739,7 +1811,8 @@ bind . <Visibility> {
 bind $cc <Visibility> {
 	set dx [expr [winfo x ${::cc}]-[winfo x ${::cc}top]]
 	set dy [expr [winfo y ${::cc}]-[winfo y ${::cc}left]]
-	;#grand_annoucement zzzzzzzzzz $dx $dy
+	;#put zzzzzzzzzz $dx $dy
 	mark::moveonce $dx 0 0 $dy
 	bind $cc <Visibility>
 }
+put1 "[winfo width .] = [winfo vrootwidth .] = [winfo reqwidth .]"
