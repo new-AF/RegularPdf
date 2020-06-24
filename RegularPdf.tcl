@@ -307,49 +307,6 @@ proc stack_things {args} {
 	}
 }
 
-proc aphoto {args} { ; # alpha photo
-	# ?create? ?zoom factorx factory? ?alpha newValue?
-	
-	set pho [lindex $args 0]
-	
-	if [string equal $pho create] { set pho  [image create photo [lindex $args 1]]
-		set args [lreplace $args 0 1] } else { set args [lreplace $args 0 0]  }
-	
-	set args2 [dict create]
-	
-	for {set v [llength $args]} {[incr v -1] >= 0} {}  {
-		switch [lindex $args $v] {
-			zoom {dict set args2 zoom [list $v [expr $v+2]] }
-			alpha {dict set args2 alpha [list $v [expr $v+1]]}
-		}
-	}
-	
-	foreach v [dict keys $args2] {
-		set value [dict get $args2 $v]
-		dict set args2 $v [lrange $args [lindex $value 0]+1 [lindex $value 1] ]
-		set args [lreplace $args {*}$value]
-	}
-	
-	$pho configure {*}$args
-	foreach v [dict keys $args2] {
-		set value [dict get $args2 $v]
-		switch $v {
-		zoom {pho copy pho {*}$value }
-		alpha { set x [$pho cget -width] ; lappend x [$pho cget -height] ; set x [lsort $x]
-			set y [lindex $x 1]
-			set x [lindex $x 0] ;
-			while {[incr x -1] >= 0} {
-				set tempy $y
-				while {[incr tempy -1]>=0} {$pho transparency set $x $tempy $value -alpha }
-				
-			} 
-		}
-	} 
-		
-	}
-	return $pho
-}
-####
 
 # Status Bar
 set s [label .0label -relief sunken -borderwidth 2 -text ""]
@@ -690,9 +647,7 @@ proc triangle {args} {
 	;#B $c create line 0 0 $adj2 0 -fill blue -width 5 -tag TRIANGLE
 	return $tor
 }
-proc blink_line_cursor {{on 0}} {
-	if $on {} else {}
-}
+
 proc hoverline {c {x ""} {y ""} args} {
 	
 	if {$x eq "" } {
@@ -800,7 +755,7 @@ oo::class create Tabs {
 	set com "[self] create {}"
 	
 	
-	button $tc.add -text "\ud83d\uddcb New Document" -relief groove -command $com
+	button $tc.add -text "\ud83d\uddcb Create New Document" -relief groove -command $com
 	ttk::separator $tc.end -orient horizontal
 	
 	set fcount 0
@@ -997,7 +952,7 @@ pack $e -side left -expand 1 -fill both
 pack $g -side left -fill y
 #pack config $j -padx 0
 
-# ***Toolbar Buttons*** #
+# ***Toolbar Button*** #
 proc ToolbarButton {args} {
 	# puts "** args are -> $args"
 	set result [button {*}$args -relief flat]
@@ -1005,6 +960,30 @@ proc ToolbarButton {args} {
 	bind [lindex $args 0] <Leave> {buttonleave %W}
 	return $result
 }
+
+proc Args {lst args} {
+	set x [lsearch -nocase -all $args -\[a-z\]* ] ;#option_indexes
+	set d [dict create] ; #vairables_dictionary
+	
+	foreach name {args lst} {
+		upvar 0 $name var
+		foreach i [list {*}[lrange $x 1 end] [expr [llength $var]-1]] j $x {
+			dict set d [lindex $var $j] [expr { $i - $j ? [lrange $var $j+1 $i-1] : {} } ]
+		}
+		set x [lsearch -all -?* $lst ]
+		if {$x eq {}} then {break}
+	}
+	#set com "dict for {key value} $d {set [string range $key 1 end] $value}"
+	set com [string cat {dict for {key value} } "{$d}" { {set [string range $key 1 end] $value}} ]
+	uplevel 1 $com
+}
+
+proc Triangle {args} {
+	Args $args -angles 60deg -points 0,0 +10,0 -10,-10 -anchor 1
+	if ![info exists points] {error "Argument Missing: -points ..." ; return}
+	
+}
+
 set OBJ 0
 set OBJTABLE [dict create]
 
@@ -1021,16 +1000,17 @@ proc dictlincr {d key index  {by 1} } {
 
 namespace eval save {
 	set filter {}
-	set exts {{"All Files" *} {"PostScript Files" {*.ps}}}
-	 
+
+	set exts [list [list {All Files} *] [list {PostScript Files} *.ps] [list {Portable Document Files} *.pdf]]
 
 	proc pdf {args} {
 		set path [tk_getSaveFile -filetypes $save::exts -title {Save current Document as} -typevariable save::filter]
-	
-		set out [open $path w]
+		if {$path ne {}} {
+			set out [open $path w]
+			close $out
+			concat
+		}
 		
-		close $out
-		concat
 }
 	 
 	proc ps {} {	
@@ -1047,40 +1027,6 @@ namespace eval save {
 		;#puts "filter=$save::filter i1=$in i=$i search=$r<"
 		return $r
 	}
-}
-
-proc put {x} {
-	
-puts "[info level 0]"
-
-set a [dict get $x *begin]
-set b [dict get $x *end]
-set t [dict get $x *type]
-#set a [string cat {*}[lmap i $a j $a0 {puts /$i$j/;subst "$i$j"}]]
-#set b [string cat {*}[lmap i $b j $b0 {subst "$j$i"}]]
-#puts "B-> $b"
-
-set r [switch [lindex $t 0] {
-   stream { set p [lsearch $a <<*] ; set pEnd [lsearch $b *>>]
-   set a [lreplace $a $p $p [lindex $a $p] [dict get $x *thing] "[lindex $b $pEnd] "]
-   set b [lreplace $b $pEnd $pEnd] ; dictlincr x *lengthEach 0 1
-   subst [list [join [dict get $x *stream] { }]]}
-   
-   pages -
-   dict { subst [dict get $x *thing] }
-   
-   }]
-
-# lengthEach[0] must be incremented; it's currently off by 1
-set x [join [concat [dict get $x *cap] $a $r $b [dict get $x *tail]] {}]
-
-puts =$x=
-
-return $x
-}
-
-proc reftable { d {replace 0} } {
-  
 }
 
 proc PDF {what args} {
