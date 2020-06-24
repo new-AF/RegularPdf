@@ -1007,7 +1007,7 @@ proc ToolbarButton {args} {
 }
 set OBJ 0
 set OBJTABLE [dict create]
-set OBJSpecial [dict create]
+
 
 proc incrobj {{by 1}} {
  return [incr ::OBJ $by]
@@ -1018,113 +1018,6 @@ proc dictlincr {d key index  {by 1} } {
  dict set x $key [lreplace $l $index $index [expr [lindex $l $index]+$by ]]
  concat
 }
-proc header {{v 1.4}} {
-	set s "%PDF-$v"
-	set x [dict create *type header *begin {{}} *end {"\n"} *header $s *lengthEach [string length $s] *cap {} *tail {}]
- dict incr x *lengthEach 1
-	return $x
-}
-
-proc objectarray { args } {
-
-set hasref [string equal [lindex $args end] -hasref] ; set ref {} ; set refshadow {}
-if {$hasref} { set args [lreplace $args end end] ; set ref [lsearch -all -glob $args \\**] ; set refshadow [lsearch -all -inline -glob $args \\**]}
-set refcount [llength $ref]
-
-set x [ dict create *type array *lengthEach [string length $args] *array $args *count [llength $args] *begin {[} *end {]} *ref $ref *refcount $refcount]
-dict incr x *lengthEach  2
-dict incr x *lengthEach  -[string length [join $refshadow {}]]
- return $x
-}
-proc objectdict { things {add {}} } {
-
-set inner [dict create {*}$things]
-set outer [dict create *type dict *lengthEach 6 *begin {{<< }} *end {{ >>}} *thing {} *cap {} *tail {} *ref {} *refAlt {} *refcount 0]
-set outer [dict merge $outer $add]
-	
-dict set outer *thing $inner
-dict incr outer *lengthEach [string length [dict get $outer *thing]]
-concat
-return $outer
-}
-proc objectstream { things {add {}} } {
-lassign $things op things
-
-set x [objectdict {/Length 0}]
-
-dict set x *type stream
-dict set x *stream {}
-
-dict lappend x *begin [set a "stream\n"]
-dict lappend x *end [set b "\nendstream"]
-
-switch $op {
-
- text {  dict set x *stream  {{/Font1 32 Tf} BT {50 200 Td} "($args) Tj" ET} }
-}
-set l [string length [join [dict get $x *stream]]$a$b]
-dict lappend x *lengthEach $l
-concat
-return $x
-}
-
-proc objectpages {args} {
- 
- set fdetails [object dict /Type /Font /Subtype /Type1 /Name /Font1 /BaseFont /Tahoma -ref]
- set fname [object dict /Font1 *$fdetails {-hasref -ref}]
- 
-lassign [object dict /Type /Pages /MediaBox *[object array 0 0 600 600 -ref] /Resources *[object dict /Font *$fname {-hasref -ref}] /Kids *[object array -ref] /Count 0 {-hasref -ref -give}] x c
- 
- dict set x *type [lreplace [dict get $x *type] 0 0 pages]
- 
- lassign [object page /Parent *$c /Contents *[object stream text TEST {-ref -noobject}] {-hasref -ref -give}] x2 c2
- 
- concat
-}
-proc objectpage {args} {
- 
- #dirty way of doing it.
-	set x [object dict  ]
- set x [dict create /Type /Page /Parent null /Contents null]
-	
- set x [dict merge $x [object dict {*}$args ] ]
- 
- set x [objectdict {*}$dl]
- dict set x *type page
- 
-
- concat
-}
-proc object { what args } {
-
-if [string match -?* [lindex $args end 0] ]  { set end [lindex $args end] ;  set args [lreplace $args end end] } else { set end [list] }
-foreach v {ref hasref give noobject} {set $v 0}
-foreach v $end {set [string range $v 1 end] 1}
-
-#add[itional] Dictionary, to store miscellaneous info.
-set add [dict create]
-
-if $hasref {set t [lsearch -glob -all $args \\**] ; dict append add *refAlt $t ;  dict append add *refcount [llength $t ] ; dict append add *ref [lmap v $t { subst [lindex $args $v-1] }]  }
-
-
-set x [object$what $args $add ]
-
-if $noobject { if $ref {set c [incrobj]} } else {
-set a "[set c [incrobj]] 0 obj\n" ; set b "\nendobj" ;
-
-dict lappend x *lengthEach [string length $a$b]
-dict set x *begin [list $a {*}[dict get $x *begin]]
-dict lappend x *end $b
-dict lappend x *type object
-}
-concat
-if $give {
-		if $ref { dict append ::OBJTABLE $c $x ; return [list $x $c]
-		} else { return $x }
-	} elseif $ref {return $c} else { return $x }
-	
-}
-
 
 namespace eval save {
 	set filter {}
@@ -1268,7 +1161,7 @@ proc PDF {what args} {
 						dict incr x *length [string length [join [dict get $x *end] {}]]
 					} stream {
 						dict set x *type stream
-						dict lappend x *begin "stream\n"
+						
 						dict lappend x *end "\nendstream"
 						dict set x *thing [dict create]
 						dict append x *count 0
@@ -1287,6 +1180,7 @@ proc PDF {what args} {
 						}
 						dict incr x *length [string length [join [join [dict values [dict filter $x key child_*] ] { } ] [dict get $x *streammiddle]]  ]
 						dict lappend x *begin "[PDF str [PDF create dict /Length [dict get $x *length] ] ]\n"
+						dict lappend x *begin "stream\n"
 						dict incr x *length [string length [join [dict get $x *begin] {}]]
 						dict incr x *length [string length [join [dict get $x *end] {}]]
 						} pages {

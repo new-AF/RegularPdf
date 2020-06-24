@@ -1,0 +1,56 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Page /Parent 7 0 R /Contents 8 0 R >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /Name /Font1 /BaseFont /Tahoma >>
+endobj
+3 0 obj
+<< /Font1 2 0 R >>
+endobj
+4 0 obj
+<< /Font 3 0 R >>
+endobj
+5 0 obj
+[0 0 400 400]
+endobj
+6 0 obj
+[1 0 R]
+endobj
+7 0 obj
+<< /Type /Pages /MediaBox 5 0 R /Resources 4 0 R /Kids 6 0 R /Count 1 >>
+endobj
+8 0 obj
+<< /Length 39 >>
+stream
+/Font1 12 Tf
+BT
+50 200 Td
+(HELLO) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Catalog /Pages 7 0 R >>
+endobj
+10 0 obj
+<< /Title (A PDF File) /Author (Abdullah Fatota) /Creator (RegularPDF) /Producer (RegularPDF) >>
+endobj
+xref
+0 11
+0000000000 65535 f
+0000000009 00000 n
+0000000072 00000 n
+0000000152 00000 n
+0000000186 00000 n
+0000000219 00000 n
+0000000248 00000 n
+0000000271 00000 n
+0000000359 00000 n
+0000000448 00000 n
+0000000497 00000 n
+trailer
+<< /Size 11 /Info 10 0 R /Root 9 0 R >>
+startxref
+610
+%%EOF
