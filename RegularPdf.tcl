@@ -19,8 +19,201 @@ proc buttonleave {w} {
 	$w config -relief flat
 	
 }
+proc Args {lst args} {
+	#Args $args -angles 60deg -points 0,0 +10,0 -10,-10 -anchor 1 -sides
+	set x [lsearch -nocase -all $args -\[a-z\]* ] ;#option_indexes
+	set d [dict create] ; #vairables_dictionary
+	
+	foreach name {args lst} {
+		upvar 0 $name var
+		foreach i [list {*}[lrange $x 1 end] [llength $var]] j $x {
+			#puts "i-j  [expr {$i - $j} ] =[lrange $var $j+1 $i-1]="
+			dict set d [lindex $var $j] [expr { ($i - $j) > 1 ? [lrange $var $j+1 $i-1] : {} } ]
+		}
+		set x [lsearch -all $lst -?* ]
+		if {$x eq {}} then {break}
+	}
+	#set con "$d"
+	#concat
+	set com [string cat {dict for {key value} } "{$d}" { {set [string range $key 1 end] $value}} ]
+	
+	
+	uplevel 1 $com
+	return x
+}
+proc ParsePoints {lst} {
+	#puts =[ParsePoints {10,10 +1,+1 -2,+2 3,3}]=
+	set xcat [list] ; # 
+	set x [lmap i $lst {subst [split $i ,]}]
+	set last [list x x]
+	foreach l $x  { ;#i [range 0 [llength $lst]-1]
+		set w 0
+		
+		foreach p $l {
+			if {[string index $p 0] eq {#}} {set p [split #] ; lset p 0 [lindex $xcat [lindex $p 1] $w ]}
+			if {[string first + $p] != {-1} || [string first - $p] != {-1}} {set p [expr [lindex $last $w] $p]}
+			lappend xcat $p
+			lset last $w $p
+			set w 1
+		}
+		
+	}
+	return $xcat
+}
+proc Angle2 {a args} {
+	#Angle2 -rad 50 40
+	set a [list {*}$a {*}$args]
+	set a [join $a]
+	lassign $a w
+	if [string match -?* $w] {set a [lrange $a 1 end] ; set w [string range $w 1 end]} else {set w {}; return}
+	
+	lassign [ list [expr { 2 * $::pi / 360 }] [expr { 360 / (2 * $::pi) }] ] radUnit degUnit
+	set unit [set ${w}Unit]
+	set a [lmap i $a {subst [expr $i]}]
+	set r [lmap i $a {subst [expr {$i * $unit} ]  }]
+	return $r
+}
+proc Angle {a args} {
+	#Angle -rad +99rad 7deg 1deg 1rad
+	set a [list {*}$a {*}$args]
+	set w [string trimleft [lindex $a 0] -]
+	set a [lrange $a 1 end]
+	
+	foreach name {deg rad} {
+		set $name [lsearch -all -glob $a ?*$name]
+	}
+	if { ([llength $rad] + [llength $deg]) != [llength $a] } {error "Malformatted arguments: =$a="}
 
-proc operation {what args} {
+	
+	set unit [switch $w { rad {subst [expr 2*$::pi/360]} deg {subst [expr 360/(2*$::pi)]}  }]
+	
+	foreach name {deg rad} {
+		set tmp [ lmap i [set $name] {subst "$i [string trimright [lindex $a $i] $name]"} ]
+		set $name [dict create {*}[join $tmp]]
+	}
+	concat
+	
+	set w2 [switch $w deg {subst rad} rad {subst deg}]
+	set $w2 [dict map {key val}  [set $w2]  {
+		set val [expr $val]
+		expr { $val * $unit }
+	}]
+	set l [lrepeat [llength $a] x]
+	set mega [dict merge $deg $rad]
+	
+	dict for {key val} $mega {
+		lset l $key $val
+	}
+	
+	#set $name [lmap i [set $name] {set tmp [string trimright $i $name] ; expr {$tmp * $unit} }]
+	#set d [lsearch -all -glob $a ?*rad]
+	#set rad [lsearch -all -regexp $a {([0-9])+\.?rad}]
+	#set deg [lsearch -all -regexp $a {([0-9])+\.?deg}]
+	#set rad [lmap i $rad {}]
+	return $l
+}
+proc PolarToRect2 {a args} {
+	set a [list {*}$a {*}$args]
+	set a [join $a]
+	#[list 0 0 $p1x -$p1y $p2x -$p2y $p2x 0]
+	set a [lmap i $a {subst [expr $i]}]
+	
+	set result [list]
+	for {set len [expr {[llength $a] / 2}] ; set count 0} {$count < $len} {incr count 1} {
+		set r [lindex $a $count]
+		set th [lindex $a $count+1]
+		lappend result "[expr {$r * cos($th)}] [expr {$r * sin($th)}]"
+	}
+	return $result
+	
+}
+proc PolarToRect {a  args} {
+	#PolarToRect [Angle -deg 90deg] 1
+	#PolarToRect pi 1 2*pi 10
+	lassign $a w
+	if {$w eq {-zip}} {set a [lrange $a 1 end]}
+	set a [list {*}$a {*}$args]
+	#set w [string trimleft [lindex $a 0] -]
+	#set a [lrange $a 1 end]
+	set len [llength $a]
+	if [expr $len%2] {error {Count of Arguments: count is not even}}
+	
+	if {$w ne {-zip}} {
+		for {set i 0} {$i < $len} {incr i [expr {$i ? $i : 2}]} {
+			set r [lindex $a $i+1]
+			set theta [lindex $a $i]
+			lset a $i "[expr {$r * cos($theta)} ] [expr {$r * sin($theta)} ]"
+		}
+		set a [lreplace $a $i-1 end]
+		} else {
+		set a [lmap theta [lindex $a 0] r [lindex $a 1] { subst "[expr {$r * cos($theta)} ] [expr {$r * sin($theta)} ]" }]
+	}
+	return $a
+}
+
+
+proc Shape {what args} {
+	#Args $args -angles 60deg -points 0,0 +10,0 -10,-10 -anchor 1 -sides
+	switch $what {
+		triangle {
+			Args $args -angles -points -anchor -sides -height
+			
+			#if {!($points ne {} || ($angles ne {} && $sides ne {})) } {
+			#	error { Missing Arguments: Either -points or (-angles and -sides) must be supplied. } }
+			if {$points ne {}} {
+				set points [ParsePoints $points]
+			} elseif {$height ne {}} {
+				#angle is taken care of in Angle2
+				set angles [expr { $angles eq {} ? 60 : $angles}]
+				set height [expr $height] 
+				set angle [Angle2 -rad $angles]
+				set s9 [expr {tan($angle) / $height}]
+				
+				set s1 [expr { sqrt($s9**2 + $height**2) }]
+				set result [Shape triangle -angles $angles $angles -sides $s1]
+			} else {
+				set len [llength $angles]
+				if {$len != 2} {error "Shape: Triangle: Got $len Angle(s) =$angles= But 2 are nedded.  "}
+				lassign $angles a1 a2 	; #only 2 angles needed: (left-side) and (right-side)
+				set a2orig $a2
+				lassign [Angle2 -rad $a1 [expr {$a2 > 90 ? $a2 : 180-$a2}]] a1 a2
+				lassign $sides s1  		;# only 1 side's length needed from the user, for now (becasue the alogrith assumes a horizontaol and flat third side)
+				lassign [PolarToRect2 $s1 $a1] p1 ; lassign $p1 p1x p1y
+				set a9 $a2
+				set s9 [expr { abs($p1y / tan($a9)) }]
+				#if {$a2orig > 90} { set s9 0}
+				set s2 [expr {sqrt($s9**2 + $p1y**2)}]
+				lassign [PolarToRect2  $s2 $a2] p2 ; lassign $p2 p2x p2y
+				# the 3rd side is not needed since [canvas polygon] will automaticallyly return to (p1x 0) thereby creating a (horizontal line).
+				#set p2x [expr {$p2x + $p2x + $p1x}]
+				#set result [list 0 0 $p1x -$p1y ]  ; # Minus the y-axis on the tkinter canvas is inverted.
+				#set result [list 0 0 $p2x [expr -$p2y] ]
+				set result [list 0 0 $p1x [expr -$p1y] [expr ($p1x  + abs($p2x))] 0]
+				if {$a2orig > 90} { set result [list 0 0 $p1x [expr -$p1y] [expr ($p1x  + $p2x)] 0] }
+				
+			}
+			
+		}
+		parallel {
+			Args $args -angle -width -height
+			if {$angle eq {}} {error {Shape-> parallel: Argument Missing: -angle not specified.}} elseif {
+				$width eq {} || $height eq {}} {error "Shape-> parallel: Argument Missing: [expr {$width eq {} ? {-width} : {}}] [expr {$width eq {} ? {-height} : {}}] not specified."}
+			
+			set over90 [expr {$angle > 90 ? 1 : 0}]
+			
+			lassign [Angle2 -rad $angle] a1
+			set s1 [expr { $height / sin($a1) }]
+			lassign [PolarToRect2 $s1 $a1 ] p ; lassign $p x y
+			
+			
+			set result [list 0 0 $x [expr -$y] [expr {$x + $width}]  [expr -$y] $width 0  ]
+		}
+		
+	}
+	return $result
+}
+proc operation {what a args} {
+ set args [list {*}$a {*}$args]
  set d [dict create plus + minus - product * divide / raise **] ;#Symbols
  if { $what eq {vectorize} || $what eq {vectorise} } {
 	set vec 1
@@ -284,11 +477,12 @@ proc change_font {args} {
 		set ::cSize [get_args $::cFont -size]
 	} else {
 		#put cSize $::cSize
-		incr ::cSize [lindex $args end]1
+		set ::cSize [expr int($::cSize[lindex $args end]) ]
 	}
 	set ::cDim [.pane.main.canvas bbox TEXT]
 	.pane.main.canvas itemconfig TEXT -font "-size $::cSize"
 	.pane.main.canvas itemconfig BLOCK_CURSOR -font "-size $::cSize"
+	update_hoverline
 	return $::cSize
 }
 # **Stack** #
@@ -359,58 +553,6 @@ proc filter_pdf {W} {
 	$::e config -listvariable ::eVar
 	}
 	
-}
-
-proc pdf {com args} {
-
-	variable Info [dict create]	 null \x0 	htab \x9 	nextline \xa	nextpage \xc	cr \xd		space \x20
-	set delimeter [dict create leftparan \x28 rightparan \x29 leftangle	\x3c rightangle	\x3e lefsquare	\x5b rightsquare \x5d leftcurly	\x7b rightcurly \x7d unixslash	\x2f percent \x25]
-	set ar {-all -indices -inline}
-	if {{-is} in $args} { lset $ar [lsearch $ar -inline ] "" ; lset $args [lsearch $args -is ] "" }
-	
-	set target [expr { [llength $args] ? [concat $args] : $::pdff }] 
-	
-	set new [list]	; set result [switch $com {
-		
-		wspace {
-			regexp {*}$ar "(?:$null)|(?:$htab)|(?:$nextpage)|(?:$space)" $target
-		}
-		
-		eol { ; # EOL MARKERS
-			regexp {*}$ar "(?:$cr$nextline)|(?:$cr)|(?:$nextline)" $target
-		}
-		delimeter {
-			regexp {*}$ar [join [lmap v [dict values $delimeter *] {concat (?:$v)}] |] $target
-		}
-		default {
-			puts "::pdf -> Unrecognized Command"
-			return
-		}
-	
-	}]
-	
-	set len [llength $result]
-	if {{-indices} in $ar} { for {set index 0} {$index < $len} {incr index 1} {lappend new [lindex [lindex $result $index] 0]} }
-	return $new
-}
-
-variable pdf2 {args} {
-	namespace eval whitespace { null \x0 	htab \x9 	nextline \xa	nextpage \xc	cr \xd		space \x20 }
-	namespace eval delimiter {leftparan \x28 rightparan \x29 leftangle	\x3c rightangle	\x3e lefsquare	\x5b rightsquare \x5d leftcurly	\x7b rightcurly \x7d rightslash	\x2f percent \x25}
-	set i [split $:pdff {}]
-	lsearch $i 
-	
-}
-
-proc pdfparse {objpath} { #object is ::oo::objxxx it is result of [self] from the calling Object. 
-	
-	set str [subst $[subst $objpath]::str] ; puts "**pdf file Legnth: [string length $str] Bytes**"
-	
-	#set calc [expr 8*4+4*4-1] ; #12 ab cd 32 ....
-	puts [lrepeat 10 *]
-	
-	set ::pdff $str
-
 }
 
 proc TEXThover0 {args} {
@@ -559,39 +701,95 @@ proc create_text {c x y k a} {
 	
 }
 
+set whocalled {}
+set whoobject {}
+set whataction {}
 oo::class create SingleTab { 
 	
-	variable txt str path fh b 
+	variable txt myframe doc dot pages parent Position ;#...
 	
-	constructor {tempcount {temptxt ""}} {
+	constructor {tempcount passed_parent {temptxt ""}} {
 
-		set txt $temptxt ; incr tempcount
+		set pages 0
+		set txt $temptxt ;
 		
+		set parent $passed_parent
+		set myframe [frame $parent.myframe$tempcount -relief groove]
 		set com "[self] clicked"
-		set b [button .pane.tabs.button$tempcount -text [expr { $temptxt eq {} ? "Blank Document #$tempcount" : $temptxt }] -relief groove -cursor hand2 -command $com]
-		if ![string equal $txt ""] {
-
-		set path [file join $::ePath $txt]
-		set fh [open $path]
-		fconfigure $fh -translation binary
-		set str  [read $fh]
+		#Document
+		set doc [button $myframe.doc -text [expr { $temptxt eq {} ? "Blank Document #$tempcount" : $temptxt }] -relief groove -cursor hand2 -command $com]
+		set dot [button $myframe.dot -relief flat -text {...} -cursor hand2]
 		
-		} else {
-		set str {Blank Document}
-		}
+		
+		grid $doc -column 0 -row $pages -sticky nsew
+		grid $dot -column 1 -row $pages -sticky nsew
+		
+		
+		my newpage
+		
+		grid $myframe -column 0 -row $tempcount -sticky nsew {*}[if {$tempcount > 1 } { subst {-pady 0.5cm}}]
 		
 		#after 1000 "[self] clicked"
-		my clicked
+		#my clicked
+	}
+	method newpage { {at {} } { textPassed {}}} {
+		
+		incr pages
+		
+		set p [button $myframe.page$pages -text [expr {$textPassed eq {} ? "Page $pages" : $textPassed}] -relief groove]
+		set pdot [button $myframe.dot$pages -relief flat -text {...} -cursor hand2];# -command "postgeneric $myframe.dot$pages .mPage"]
+		
+		set sub ""
+		set sub1 ""
+		bind $pdot <ButtonRelease> " set ::whocalled $p ; set ::whoobject [self] ; postgeneric $pdot .mPage" 
+		
+		if {$at eq {}} {
+			set at $pages
+		}
+		grid $p -column 0 -row $at -padx 0.2cm
+		grid $pdot -column 1 -row $at
 	}
 	 method get {} {
-	 	return $b
+	 	return [list $doc $dot]
 	 }
-	 method close {} {
-	 	close fh
+	 method remove {} {
+	 	
+	 }
+	 method info {who args} {
+		puts who=>$who
+		set det [grid info $who] ; #details
+		return [lmap i $args {subst [dict get $det $i]}]
+	 }
+	 method rename {who} {
+		
+		set name [string trimleft $who [dict get $det -in]] ; puts Name|$name
+		set row [dict get $det -row ]
+		set col [dict get $det -column]
+		set textW [entry $myframe.textW -bg [. cget -bg] -text $name]
+		grid forget $who
+		grid $textW -row $row -column $col -sticky nswe
+		return
+	 }
+	 method clone {who} { ; #whocalled #.pane.tabs.myframe1.dot1
+		lassign [my info $who -row -column] row col
+		puts who=>$who
+		
+		foreach x [grid slaves $myframe] {set oldRow  [dict get [grid info $x] -row]  ; if {$oldRow <= $row} {continue} ;  grid configure $x -row [expr 1+$oldRow] ; puts U }
+		my newpage [expr {1 + $row}] "Clone of ([$who cget -text])"
+	 }
+	 method up {who} {
+		lassign [my info $who -row -column] row col
+		foreach x [grid slaves $myframe] {set oldRow  [dict get [grid info $x] -row] ; puts "oldElement $x row $oldRow Reference $row";  if {$oldRow < $row} {continue} ; grid configure $x -row [expr 1+$oldRow] }
+			my newpage [expr {$row}] 
+	 }
+	 method down {who} {
+		lassign [my info $who -row -column] row col
+		foreach x [grid slaves $myframe] {set oldRow  [dict get [grid info $x] -row] ; puts "oldElement $x row $oldRow Reference $row";  if {$oldRow <= $row} {continue} ; grid configure $x -row [expr 1+$oldRow] }
+			my newpage [expr {1 + $row}] 
 	 }
 	 method clicked {} {
-	 	.pane.main.canvas itemconfigure TEXT -text [string range $str 0 100]
-	 	pdfparse [self]
+	 	
+	 	#
 	 }
 
 }
@@ -648,6 +846,21 @@ proc triangle {args} {
 	return $tor
 }
 
+proc update_hoverline {} {
+	set s $::cSize ; set ::lVar $s 
+	set all [$::cc find withtag LINE]
+	set f [lindex $all 0] 
+	
+	
+	lassign [$::cc bbox B] bx by bw bh ; incr bx 2
+	
+	set many [expr {$bh / $s}] ;
+	for {set i 0 ; set count 1} {$count < $many} {incr i $s; incr count 1} {
+		$::cc moveto [lindex $all $count] $bx $i
+	}
+	
+}
+
 proc hoverline {c {x ""} {y ""} args} {
 	
 	if {$x eq "" } {
@@ -685,8 +898,6 @@ proc hoverline {c {x ""} {y ""} args} {
 	}
 }
 
-proc lineh_pdf {w} {
-}
 
 proc ruler {top left} {
 	set ct .pane.main.canvastop
@@ -706,24 +917,24 @@ proc ruler {top left} {
 	$ct create line 0 0 400c 0 -width 5 -fill black -tag topline
 	$ct create text 15 [expr $ypad+11] -text cm -anchor n
 	$cl create text [expr $ypad+11+10] 0 -text cm -anchor w
-	$cl create line 0 0 0 400c -width 5 -fill black -tag leftline
+	$cl create line 0 0 0 400c -width 5 -fill black -tag leftline ;# rename zeroline
 	
 	
-	$c create line 0 0 1cm 0 -fill "" -tag cm
-	set cm [lindex [$c bbox cm] 2]
+	$c create line 0 0 1cm 0 -fill {} -tag cm
+	set cm [lindex [$c bbox cm] 2] ;#length
 	set tenth [expr $cm/10.0]
 	
 
 	
 	for {set x $startx; set end 400} {$x < $end} {incr x} {
 		#puts "x=$x end=$end" 
-		$ct create line ${x}c 0 ${x}c [expr $ypad+11]
+		$ct create line ${x}c $xpad ${x}c [expr $ypad+11]
 		$ct create text ${x}c  [expr $ypad+11] -anchor n -text $x
 		
 		set count 0
 		while {[incr count] < 10} {
 			;#puts "count=$count x=$x should be less than 10" 
-			$ct create line ${x}.${count}c 0 ${x}.${count}c [expr $ypad+$count] }
+			$ct create line ${x}.${count}c $xpad ${x}.${count}c [expr $ypad+$count] }
 	}
 	for {set x $startx; set end 400} {$x < $end} {incr x} {
 		#puts "x=$x end=$end" 
@@ -739,6 +950,143 @@ proc ruler {top left} {
 
 }
 
+proc ruler2 {startx w starty h} {
+	
+	set ct .pane.main.canvastop
+	set c .pane.main.canvas
+	set cl .pane.main.canvasleft
+	
+	set padtop [$ct cget -highlightthickness]
+	set padleft [$cl cget -highlightthickness]
+	
+	set pad1 [expr { $padtop+11 }]
+	set pad2 [expr { $padleft+11+5 }] ;#+5
+	
+	$c create line 0 0 1cm 0 -fill {} -tag cm
+	set cm [lindex [$c bbox cm] 2] ;#length
+	set tenth [expr $cm/10.0]
+	
+	set w [expr {int(ceil(2*$w / $cm))}]
+	set h [expr {int(ceil(2*$h / $cm))}]
+	set fill gray
+	
+	#set bunch [ list ] ; while {[incr count] < 10} {lappend bunch $count} ;# The Dot before count is essential.
+	#set bunch [range 0 10] ; set ex [range -$w $w] ; lset ex [lsearch $ex 0] {-0 0} ; set ex [join $ex]
+	
+	set count 	10
+	set i 		0
+	set bunch1 [list] ; while {$i < $count} { lappend bunch1 $i ; incr i}
+	set bunch2  [lmap i [list $count {*}[lrange $bunch1 1 end]] {subst {[expr $padtop+$i+4]}}]
+	
+	set bunch1 [lmap i $bunch1 {subst .${i}c}]
+
+	$ct create line 0  $padtop ${w}c $padtop -width 2 -fill black -tag {topline toplineRight}
+	$ct create line -${w}c  $padtop 0 $padtop -width 2 -fill black -tag {topline toplineLeft} -fill $fill
+	$cl create line $padleft 0 $padleft ${h}c  -width 2 -fill black -tag {leftline leftlineRight}
+	$cl create line $padleft -${h}c $padleft 0 -width 2 -fill black -tag {leftline leftlineLeft} -fill $fill
+	
+	for {set i 0} {$i < $w} {incr i} {
+		
+		foreach j $bunch1 k [list [lindex $bunch2 0] {*}[lreverse [lrange $bunch2 1 end ]]] {
+			
+			$ct create line -$i$j $padtop -$i$j $k -fill $fill -tag "-$j -$i$j"
+			$cl create line $padleft  -$i$j  $k -$i$j -fill $fill -tag "-$j -$i$j"
+		}
+		$ct create text -${i}c  $pad1 -anchor n -text -$i -fill $fill -tag -$i
+		$cl create text  $pad2 -${i}c  -anchor w -text -$i -fill $fill -tag -$i
+	}
+	
+	for {set i 0} {$i < $w} {incr i} {
+		
+		foreach j $bunch1 k $bunch2 {
+			
+			$ct create line $i$j $padtop $i$j $k -tag "$j $i$j"
+			$cl create line $padleft  $i$j  $k $i$j -tag "$j $i$j"
+		}
+		$ct create text ${i}c  $pad1 -anchor n -text $i -tag +$i
+		$cl create text  $pad2 ${i}c  -anchor w -text $i -tag +$i
+	}
+	
+	$ct delete -0
+	$cl delete -0
+}
+namespace eval small_triangle {
+	set avalh 0 ; #avialable height (with a small amount sybtracted from for the text below)
+	set yzero 0 ; #y coord of 0 |  (tick)
+	set ylabvar {}
+proc create {} {
+	set ct .pane.main.canvastop
+	set c .pane.main.canvas
+	set cl .pane.main.canvasleft
+	
+	#Unused
+	set wct [$ct cget -width]
+	set hct [$ct cget -height]
+	
+	set wcl [$cl cget -width]
+	set hcl [$cl cget -height]
+	
+	#set zero [$ct bbox +0] ; # NOT REliable +3 Difference 
+	set zero [$ct coords .0c] ; #ycoord of |
+	
+	set yzero [expr [lindex $zero 3]]
+	set xzero [lindex $zero 0]
+	
+	set h [expr $hct-$yzero]
+	set small_triangle::yzero $yzero 
+	set small_triangle::avalh [expr $h] ; #space for text beneath
+	
+	set dim [Shape triangle -height $h ]
+	$ct create text $xzero [expr $yzero+15] -anchor n -tag small_traingle_text
+	$ct moveto [$ct create polygon $dim -tag small_triangle_tag] $xzero $yzero
+	
+}
+proc update {gotx} {
+	set c .pane.main.canvas
+	set ct .pane.main.canvastop
+	set cl .pane.main.canvasleft
+	set dx [expr [winfo x $c]-[winfo x $ct]]
+	set dy [expr [winfo y $c]-[winfo y $cl]]
+	
+	
+	set x [$ct canvasx $gotx]
+	set div [expr $x/49.0]
+	#puts =$x=$div=
+	set origpart [string range $div 0[string first . $div] end]
+	puts ORIGPART=>$origpart
+	puts H=>[set h $small_triangle::avalh]
+	
+	set mh [expr {$h * $origpart}]
+	set part [expr 1-$origpart]
+	puts PART=>$part
+	puts ANGLE=>[set a [expr $part*90]] ; #puts "$a Deg"
+	
+	
+	
+	
+	puts MH=>$mh
+	#Duplicate code here. from Shape->Update->some if
+	puts RADANGLE=>[set angle [Angle2 -rad    $a]]
+	puts S9=>[set s9 [expr {abs(tan($a) / $mh)}]]
+	
+	puts S1=>[set s1 [expr { sqrt($s9**2 + $h**2) }]]
+	
+	#puts NEWY=>[set newy [expr $::small_triangle::avalh+$::small_triangle::yzero]]
+	#set newy [expr -$newy]
+	
+	#set box [list [expr $x-$s9] $newy $p1x $p1y [expr $x+$s9] $newy ]
+	set box [Shape triangle -angles $a $a -sides $s1]
+	$ct coords small_triangle_tag $box
+	#puts BOX=>$box
+	lassign [$ct bbox small_triangle_tag] nx ny nw nh
+	
+	puts "$nx $ny $nw $nh"
+	if {$nw eq {}} {set nw 0; set nh 0}
+	$ct itemconfig small_traingle_text -text [string range $origpart 0 2]
+	$ct moveto small_triangle_tag [expr $x+$dx-[expr {$nw / 2.0}]] [expr -15+$::small_triangle::yzero+$mh]
+	$ct moveto small_traingle_text [expr $x+$dx] 30
+}	
+}
 oo::class create Tabs { 
 	
 	variable fcount newcount lobj sobj m mc 		t tc
@@ -747,25 +1095,26 @@ oo::class create Tabs {
 	constructor {} {
 	
 	my create_main
-	
+	#Document create document$fcount
 	
 	set t [labelframe .pane.tabs -text {Current Tabs} -relief ridge -bd 5]
 	
-	set tc [canvas $t.canvas]
+	#set tc [canvas $t.canvas]
 	set com "[self] create {}"
+	#set com {Document create document$dcoun}
 	
-	
-	button $tc.add -text "\ud83d\uddcb Create New Document" -relief groove -command $com
-	ttk::separator $tc.end -orient horizontal
+	button $t.add -text "\ud83d\uddcb Create New Document" -relief groove -command $com
+	ttk::separator $t.end -orient horizontal
 	
 	set fcount 0
 	set newcount 0
-	pack $tc -fill both -side top
+	#pack $tc -fill both -side top
+	
+	#pack $t.add -fill x -pady 0.05in -side top
+	#pack $t.end -fill x -pady 0.05in -side bottom
 	
 	
-	pack $tc.add -fill x -pady 0.05in -side top
-	pack $tc.end -fill x -pady 0.05in -side bottom
-	
+	grid $t.add -column 0 -row $newcount -columnspan 2 -sticky nsew 
 	#place .tabs -relx 0.66 -y 0.4in -relwidth 0.3 -relheight 1
 	
 	
@@ -808,10 +1157,16 @@ oo::class create Tabs {
 	
 	method create {txt} {
 		
-		set new [SingleTab new [expr $fcount+$newcount] $txt]
-		lappend lobj $new
-		pack [$new get] -fill x -pady 0.05in
-		switch $txt {} {incr newcount} default {incr fcount}
+		incr newcount
+		set new [SingleTab new [expr $fcount+$newcount] $t $txt]
+		#lappend lobj $new
+		lassign [$new get] b dot
+		#pack [$b get] -fill x -pady 0.05in
+		
+		
+		
+		
+		#switch $txt {} {incr newcount} default {incr fcount}
 		
 	}
 	
@@ -832,17 +1187,17 @@ oo::class create Tabs {
 		
 		separator $tbar.separator1 label -pack
 		
-		pack [button $tbar.enlarge -text "$::IconFontIncrease Enalrge Text" -relief groove -command "change_font +"] -side left -expand 0 -padx 1
-		pack [button $tbar.ensmall -text "$::IconFontDecrease Ensmall Text" -relief groove -command "change_font -"] -side left -expand 0 -padx 1
+		pack [button $tbar.enlarge -text "$::IconFontIncrease Enalrge Text" -relief groove -command "change_font +1"] -side left -expand 0 -padx 1
+		pack [button $tbar.ensmall -text "$::IconFontDecrease Ensmall Text" -relief groove -command "change_font -1"] -side left -expand 0 -padx 1
 		
 		separator $tbar.separator2 label -pack
 		
 		pack [button $tbar.zoomin -text "$::IconPlus $::IconZoom Zoom In" -relief groove -command {.pane.main.canvas scale all [expr [.pane.main.canvas cget -width]/2] [expr [.pane.main.canvas cget -height]/2] 2 2 ; 
 			.pane.main.toolbar.enlarge invoke
-		}] -side left -expand 0 -padx 1
-		pack [button $tbar.zoomout -text "$::IconMinus $::IconZoom Zoom Out" -relief groove -command {.pane.main.canvas scale all [expr [.pane.main.canvas cget -width]/2] [expr [.pane.main.canvas cget -height]/2] .5 .5 ;
+		; change_font *2 }] -side left -expand 0 -padx 1
+		pack [button $tbar.zoomout -text "$::IconMinus $::IconZoom Zoom Out" -relief groove -command { .pane.main.canvas scale all [expr [.pane.main.canvas cget -width]/2] [expr [.pane.main.canvas cget -height]/2] .5 .5 ;
 			.pane.main.toolbar.ensmall invoke
-		}] -side left -expand 0 -padx 1
+		; change_font *0.5 }] -side left -expand 0 -padx 1
 		
 		separator $tbar.separator3 label -pack
 		
@@ -898,8 +1253,9 @@ oo::class create Tabs {
 	
 	method make_ruler {} {
 		
-		ruler "0 [$::cc cget -width]" "0 [$::cc cget -height]"
-		
+		#ruler "0 [$::cc cget -width]" "0 [$::cc cget -height]"
+		ruler2 0 [$::cc cget -width] 0 [$::cc cget -height]
+		small_triangle::create
 	}
 	method triangle_tick {} {
 		set c .pane.main.canvas
@@ -961,28 +1317,7 @@ proc ToolbarButton {args} {
 	return $result
 }
 
-proc Args {lst args} {
-	set x [lsearch -nocase -all $args -\[a-z\]* ] ;#option_indexes
-	set d [dict create] ; #vairables_dictionary
-	
-	foreach name {args lst} {
-		upvar 0 $name var
-		foreach i [list {*}[lrange $x 1 end] [expr [llength $var]-1]] j $x {
-			dict set d [lindex $var $j] [expr { $i - $j ? [lrange $var $j+1 $i-1] : {} } ]
-		}
-		set x [lsearch -all -?* $lst ]
-		if {$x eq {}} then {break}
-	}
-	#set com "dict for {key value} $d {set [string range $key 1 end] $value}"
-	set com [string cat {dict for {key value} } "{$d}" { {set [string range $key 1 end] $value}} ]
-	uplevel 1 $com
-}
 
-proc Triangle {args} {
-	Args $args -angles 60deg -points 0,0 +10,0 -10,-10 -anchor 1
-	if ![info exists points] {error "Argument Missing: -points ..." ; return}
-	
-}
 
 set OBJ 0
 set OBJTABLE [dict create]
@@ -1004,9 +1339,41 @@ namespace eval save {
 	set exts [list [list {All Files} *] [list {PostScript Files} *.ps] [list {Portable Document Files} *.pdf]]
 
 	proc pdf {args} {
-		set path [tk_getSaveFile -filetypes $save::exts -title {Save current Document as} -typevariable save::filter]
+		#set path 123
+		set path [tk_getSaveFile -filetypes $save::exts -title {Save current Document as} -typevariable save::filter -defaultextension *.pdf]
 		if {$path ne {}} {
+			
+			set x [PDF create -ref page]
+			set y [PDF create -ref pages]
+			set k [dict get $::OBJTABLE $y *thing /MediaBox]
+		
+			set z [PDF create -ref stream text -text {} -fontname /Font1 -fontsize 9] ; #-fontname Calibri
+			PDF create -hasref dict /Len *8
+			PDF update -hasref $x thing /Parent *$y /Contents *$z
+			PDF update -hasref 6 thing 0 *1
+			PDF update -hasref $y thing /Kids *6 /Count 1
+			PDF update -inline 5 array  {*}[lmap i [$::cc coords B] {subst {[expr {int($i)}]}}]
+			lassign [$::cc bbox B] bxx byy bww bhh
+			foreach x [$::cc find withtag TEXT] {
+				lassign [$::cc bbox $x] xx yy ww hh
+				set yy [expr $bhh-$yy]
+				PDF update -minimal $z stream add text -text [string range [$::cc itemcget $x -text] 0 end-2] -x $xx -y $yy
+			}
+			
+			#puts [dict get $::OBJTABLE  5]
+			PDF header
+			PDF trailer
+			set B [PDF create -ref catalog]
+			set I [PDF create -ref info]
+			PDF update -hasref end thing /Info *$I /Root *$B
+			PDF update -hasref $B thing /Pages *$y
+			PDF reftable
+			#puts [PDF display]
+			concat
+			puts $path
 			set out [open $path w]
+			fconfigure $out -translation lf
+			puts -nonewline $out [PDF display]
 			close $out
 			concat
 		}
@@ -1036,7 +1403,8 @@ proc PDF {what args} {
 	set hasref 0
 	set ref 0
 	set Ret 0
-	set inline 0 ; # inline means-> IndexToChange Value
+	set inline 0 ; # inline does not mean -> IndexToChange Value.
+	set minimal 0;
 	
 	if {[set __i [lsearch -glob $args -upvar?*]] != {-1}}	 {
 		set __s [lindex $args $__i]
@@ -1115,7 +1483,7 @@ proc PDF {what args} {
 						
 						lassign $args type
 						set args [lrange $args 1 end]
-						set got [new_args [concat $args -XDefaults {{Tesst 50 200 /Font1 32}}] -text -x -y -fontname -fontsize ]
+						set got [new_args [concat $args -XDefaults {{Tesst 50 200 /Font1 9}}] -text -x -y -fontname -fontsize ]
 						lassign $got text tx ty fontn fonts
 						
 						switch $type {
@@ -1125,10 +1493,12 @@ proc PDF {what args} {
 							}
 						}
 						dict incr x *length [string length [join [join [dict values [dict filter $x key child_*] ] { } ] [dict get $x *streammiddle]]  ]
-						dict lappend x *begin "[PDF str [PDF create dict /Length [dict get $x *length] ] ]\n"
-						dict lappend x *begin "stream\n"
-						dict incr x *length [string length [join [dict get $x *begin] {}]]
-						dict incr x *length [string length [join [dict get $x *end] {}]]
+							if !$minimal {
+								dict lappend x *begin "[PDF str [PDF create dict /Length [dict get $x *length] ] ]\n"
+								dict lappend x *begin "stream\n"
+								dict incr x *length [string length [join [dict get $x *begin] {}]]
+								dict incr x *length [string length [join [dict get $x *end] {}]]
+							}
 						} pages {
 						set font1 [PDF create -ref dict /Type /Font /Subtype /Type1 /Name /Font1 /BaseFont /Tahoma]
 						set font2 [PDF create -hasref -ref dict /Font1 *$font1]
@@ -1165,7 +1535,8 @@ proc PDF {what args} {
 				
 
 				if { [string is alpha $UName] } {
-					if {$UName eq {end} && ![info exists endIsVar]} { ;# $endIsVar
+					
+					if {$UName eq {end} && ![info exists itIsVar]} { ;# $endIsVar
 						set UTarget [dict get $::OBJTABLE end]
 					} else {
 						upvar 1 $UName UTarget
@@ -1244,6 +1615,30 @@ proc PDF {what args} {
 				
 				switch $UT1 {
 					
+					stream {
+						lassign [lrange $args 0 1] UOperation USwitch
+						set args [lrange $args 2 end]
+						switch $USwitch {
+							text {
+								switch $UOperation {
+									add {
+										set UP [PDF create -minimal stream text {*}$args]
+										dict incr UTarget *count
+										dict incr UTarget *length [dict get $UP *length]
+										dict set UTarget child_text[dict get $UTarget *count] [dict get $UP child_text1]
+										
+										}
+									remove {
+										set UP child_text[lindex $args 0]
+										set args [lrange $args 1 end]
+										dict incr UTarget *count -1
+										dict incr UTarget *length -[string length [join [join [dict values [dict filter $UTarget key child_*] ] { } ] [dict get $UTarget *streammiddle]]  ]
+									}
+								}
+							}
+						}
+					}
+					
 					header {
 						
 						if { $USwitch in {thing end} } { 
@@ -1272,10 +1667,10 @@ proc PDF {what args} {
 					array {
 						
 						if $inline {
-							PDF update -inline [expr { $hasref ? {-upvar.ib} : {} }] UTarget internal list thing {*}$args
+							PDF update -inline {*}[expr { $hasref ? {-upvar.ib} : {} }] UTarget internal list thing {*}$args
 							
 						} else {
-							PDF update [expr { $hasref ? {-upvar.ib} : {} }] UTarget internal list thing {*}$args
+							PDF update {*}[expr { $hasref ? {-upvar.ib} : {} }] UTarget internal list thing {*}$args
 						}
 						
 						}
@@ -1342,9 +1737,10 @@ proc PDF {what args} {
 				PDF update end end 2 "\n$offset"
 				
 				append rows [PDF str [dict get $::OBJTABLE end ]]
-				puts "[string repeat /*\\ 5]$rows[string repeat /*\\ 5]"
-				clipboard clear
-				clipboard append $rows
+				#puts "[string repeat /*\\ 5]$rows[string repeat /*\\ 5]"
+				#clipboard clear
+				#clipboard append $rows
+				return $rows
 			}
 			header {
 				
@@ -1375,7 +1771,7 @@ proc PDF {what args} {
 } 
 
 
-# ***Toolbar*** #
+# Toolbar #
 frame .toolbar -relief flat -bd 5
 pack [ttk::separator .toolbar.endseparator -orient horizontal] -side bottom -expand 1 -fill x -pady 1
 pack [button .toolbar.first -text {} -relief flat -state disabled] -side left -expand 0 -fill none
@@ -1416,12 +1812,12 @@ proc get_items {{path ""}} {
 	
 	#set filenames [lmap v $files { lindex [file split $v] end  }] ; #Not Available in Tcl8.5
 	
-	puts "*****path($path)*******
-	*****files\[[llength $files]\]*******
-	[join $files \n]
-	*****directories\[[llength $dirs]\]*******
-	[join $dirs \n]
-	---------------"
+	#puts "*****path($path)*******
+	#*****files\[[llength $files]\]*******
+	#[join $files \n]
+	#*****directories\[[llength $dirs]\]*******
+	#[join $dirs \n]
+	#---------------"
 	
 	#puts $::eVar ; puts -------------
 	
@@ -1493,8 +1889,7 @@ proc set_statusbar {what} {
 # Bind Things
 $c config -command get_items
 $b config -command change_dir
-bind $e <Visibility> {
- #break ; "[$c cget -command]" [file normalize ~/TestPDF]  ; Adjustf
+bind $e <Visibility> { "[$c cget -command]" [file normalize ~/TestPDF]  ; Adjustf
  }
 bind $e <<ListboxSelect>> {list_select %W}
 bind $b <Motion> { set_statusbar [from_ns Tooltip %W] }
@@ -1532,7 +1927,7 @@ proc get_center {win {before 1}} {
 	return "+$w+$h"
 }
 
-# Pane additions
+# Pane Children
 foreach v "$a .pane.main .pane.tabs" {.pane add $v -sticky nswe -stretch always
 #puts "**$v**"
 }
@@ -1553,6 +1948,7 @@ proc debug {} {
 	PDF update -hasref $y thing /Kids *6 /Count 1
 	PDF header
 	PDF trailer
+	PDF update $z stream add text -x 9 -y 19
 	set B [PDF create -ref catalog]
 	set I [PDF create -ref info]
 	PDF update -hasref end thing /Info *$I /Root *$B
@@ -1565,24 +1961,51 @@ proc debug {} {
 # Help->About Menu
 menu .mMenu.mHelp -tearoff 0
 .mMenu.mHelp add command -command {wm deicon $z; wm geometry $z [get_center $z]} -label About
+#
 .mMenu add cascade -label Help -menu .mMenu.mHelp
-.mMenu add command -label Console -command {console show} ; proc postmenu {name menu} { 
-			$menu post [winfo rootx .toolbar.menu$name ]  [expr [winfo rooty .toolbar.menu$name ]+[winfo height .toolbar.menu$name ]] }
-.mMenu add command -label Debug -command debug ; 
+#
+.mMenu add command -label Console -command {console show}
+.mMenu add command -label Debug -command debug ;
 
-proc lin {target supplied args} {
-	set result 1
-	if {{-missing} in $args} {set result [llength $args]; # result is how many missing elements of $supplied are in $target.
-		foreach v $supplied {incr result -[expr {"$v" in $target}]}
-	} else {
-	
-        	foreach v $supplied {
-        		if {$v ni $target} {set result 0; break}
-        	}
-	}
-	return $result;
+#Off-screen menu
+menu .mDoc -tearoff 0
+menu .mPage -tearoff 0
+
+.mDoc add command -label Delete -command {puts .mDoc_delete}
+.mDoc add separator
+
+.mDoc add command -label Clone -command {puts .mDoc_clone}
+.mDoc add separator
+
+
+#Context Menu for Pages
+
+.mPage add command -label {Add New Page Above} -command {$whoobject up $whocalled}
+.mPage add separator
+
+.mPage add command -label {Add New Page Below} -command {$whoobject down $whocalled}
+.mPage add separator
+
+
+.mPage add command -label Delete -command { .mDoc_delete}
+.mPage add separator
+
+.mPage add command -label Clone -command {$whoobject clone $whocalled }
+.mPage add separator
+
+
+.mPage add command -label Move -command {$whoobject rename $whocalled }
+
+
+proc postgeneric {at menu} {
+	$menu post [winfo rootx $at ]  [expr [winfo rooty $at ]+[winfo height $at ]]
+}
+proc postmenu {name menu} { 
+	$menu post [winfo rootx .toolbar.menu$name ]  [expr [winfo rooty .toolbar.menu$name ]+[winfo height .toolbar.menu$name ]]
 }
 
+
+# Do not remove; 
 dict append misc switchmenu 1
 
 proc ToolbarMenu {args}  {
@@ -1637,7 +2060,8 @@ proc ToolbarMenu {args}  {
 
 	
 } }
-ToolbarMenu put pack ; setmenu {} 
+ToolbarMenu put pack ; setmenu {}
+
 bind . <Visibility> {
 
 	set cDim [.pane.main.canvas bbox TEXT]
@@ -1656,3 +2080,6 @@ bind $cc <Visibility> {
 	bind $cc <Visibility>
 }
 put1 "[winfo width .] = [winfo vrootwidth .] = [winfo reqwidth .]"
+raise .pane.main
+#bind $cc <Motion> {+ ; small_triangle::update %x ;}
+focus $::cc
