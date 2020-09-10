@@ -1,7 +1,7 @@
 # RegularPdf
 # A *PDF* Authoring tool
 
-An easy-to-use *GUI* Application that places *PDF* elements (Text, Forms, Images etc...) into a blank Document.
+An easy-to-use *GUI* Application that places *PDF* elements (Text) into a blank Document.
 
 ## This Project consists of :
 
